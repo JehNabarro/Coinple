@@ -955,4 +955,11 @@ document.addEventListener('DOMContentLoaded', () => {
       syncFromSheet({ quiet: true }).catch(() => {});
     }
   });
+
+  // Auto-sincroniza a cada 30 segundos se a app estiver ativa no browser
+  setInterval(() => {
+    if (!document.hidden && state.user && !state.demoMode && state.spreadsheetId) {
+      syncFromSheet({ quiet: true }).catch(() => {});
+    }
+  }, 30000);
 });
