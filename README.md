@@ -1,48 +1,66 @@
 # Coinple 🪙💕
 
-**Coin + Couple** — finanças a dois, com amor. App em ouro 💛 e rosa 💗 para casais registarem as despesas em conjunto, com login Google e tudo gravado numa planilha (Excel online) partilhada pelos dois.
+**Coin + Couple** — finanças a dois, com amor. 
+Uma aplicação web elegante, estilizada em tons de ouro 💛 e rosa 💗, para casais registarem e controlarem as suas despesas em conjunto. Toda a informação é guardada diretamente numa planilha do Google Sheets partilhada entre os dois, funcionando como uma base de dados 100% gratuita, privada e sob o vosso controlo.
 
-## Como funciona
+---
 
-1. **Cada pessoa entra com a sua conta Google** 🔐
-2. **Uma pessoa cria a planilha do casal** — a Coinple cria um Google Sheets ("Coinple 🪙💕 Finanças do Casal") na conta dela
-3. **Partilha com o par**: copia o link na app, e na planilha clica em **Partilhar** dando acesso de edição ao e-mail do par
-4. **O par entra com Google** e cola o link → as duas contas ficam juntas 💛💗
-5. Todas as despesas, fotinhos e orçamentos ficam gravados na planilha — os dois veem tudo, em qualquer aparelho
-6. Nas Definições há um botão **⬇️ Baixar Excel** para descarregar um `Coinple.xlsx` a qualquer momento
+## 🚀 Como funciona
 
-> Sem vontade de configurar o Google? Toca em **"Experimentar sem conta (modo demo)"** — funciona só nesse aparelho, sem partilha.
+1. **Autenticação**: Cada pessoa entra na aplicação usando a sua própria conta Google 🔐.
+2. **Criação da Planilha**: Uma das pessoas do casal cria a planilha diretamente pela aplicação. O Coinple cria automaticamente um Google Sheets denominado `"Coinple 🪙💕 Finanças do Casal"` no Google Drive dela.
+3. **Partilha**: Copia o link gerado pela app e partilha-o com o teu par. No Google Sheets, clica em **Partilhar** e dá permissões de **Edição** ao e-mail do teu par.
+4. **Sincronização**: O teu par entra com a conta Google dele, introduz o link da planilha partilhada e... as contas ficam ligadas! 💛💗
+5. **Colaboração**: Despesas, orçamentos, fotos de perfil e dados são sincronizados em tempo real diretamente da planilha. Qualquer alteração reflete-se instantaneamente nos dispositivos de ambos.
+6. **Backup Local**: Nas definições da aplicação, há um botão **⬇️ Baixar Excel** para descarregar o ficheiro `Coinple.xlsx` localmente a qualquer momento.
 
-## Configurar o login Google (uma vez só, grátis)
+---
 
-O login Google precisa de um **Client ID** (gratuito):
+## 🔒 Proteção de Credenciais contra Forks
 
-1. Vai a [console.cloud.google.com](https://console.cloud.google.com) e cria um projeto (ex.: "Coinple")
-2. Em **APIs e serviços → Biblioteca**, ativa a **Google Sheets API**
-3. Em **APIs e serviços → Tela de permissão OAuth**, configura como **Externo**, dá o nome "Coinple" e adiciona os e-mails do casal como **utilizadores de teste**
-4. Em **APIs e serviços → Credenciais → Criar credenciais → ID do cliente OAuth**:
-   - Tipo: **Aplicativo da Web**
-   - Origens JavaScript autorizadas: `http://localhost:3457` (e o endereço onde publicares a app, ex.: `https://coinple.vercel.app`)
-5. Copia o Client ID (termina em `.apps.googleusercontent.com`)
-6. Na app, no ecrã de login, toca em **⚙️ Configurar Google Client ID** e cola-o
-   (ou edita `js/config.js` e preenche `GOOGLE_CLIENT_ID`)
+Para proteger a tua credencial (o **Google Client ID**) de ficar exposta publicamente no GitHub ou em eventuais *forks* do projeto, a configuração foi separada:
 
-## Correr localmente
+1. O ficheiro `js/config.js` está configurado no `.gitignore` e **nunca** será enviado para o repositório público.
+2. No repositório, existe o ficheiro de exemplo `js/config.example.js`.
+3. Para configurar as tuas credenciais localmente, faz uma cópia do ficheiro:
+   ```bash
+   cp js/config.example.js js/config.js
+   ```
+4. Edita o novo ficheiro `js/config.js` e coloca o teu Client ID na chave `GOOGLE_CLIENT_ID`.
+
+---
+
+## 🛠️ Configurar o Google OAuth (Passo a Passo)
+
+Como a aplicação corre 100% no cliente (browser) sem servidor intermediário, precisas de criar um **OAuth Client ID** grátis para que a aplicação possa falar com a API do Google Sheets:
+
+1. Acede a [console.cloud.google.com](https://console.cloud.google.com) e cria um projeto (ex: "Coinple").
+2. Vai a **APIs e Serviços → Biblioteca**, pesquisa por **Google Sheets API** e clica em **Ativar**.
+3. Vai a **APIs e Serviços → Ecrã de consentimento OAuth**:
+   * Escolhe o tipo **Externo**.
+   * Dá o nome "Coinple" à aplicação.
+   * Adiciona o teu e-mail e o do teu par em **Utilizadores de teste** (enquanto a aplicação estiver em modo de teste, apenas estes e-mails poderão fazer login).
+4. Vai a **APIs e Serviços → Credenciais → Criar credenciais → ID do cliente OAuth**:
+   * Tipo de aplicação: **Aplicação Web**.
+   * **Origens JavaScript autorizadas**: Adiciona `http://localhost:3457` (para desenvolvimento local) e a URL de produção onde alojares a aplicação (ex: `https://coinple.vercel.app`).
+   * Clica em criar.
+5. Copia o **Client ID** gerado (termina em `.apps.googleusercontent.com`).
+6. Cola-o no teu ficheiro local `js/config.js` na propriedade `GOOGLE_CLIENT_ID`.
+
+---
+
+## 💻 Executar Localmente
+
+Corre o servidor local usando o comando abaixo para que a aplicação fique disponível exatamente na porta autorizada (`3457`):
 
 ```bash
 npx serve -l 3457 .
 ```
 
-Abre `http://localhost:3457`.
+Depois, abre [http://localhost:3457](http://localhost:3457) no teu browser.
 
-## Estrutura da planilha do casal
+---
 
-| Aba | Conteúdo |
-|---|---|
-| **Despesas** | ID, Data, Descrição, Categoria, Valor, EmailPagador, NomePagador, CriadoEm |
-| **Casal** | Email, Nome, Foto (fotinho de cada um 📸) |
-| **Orçamentos** | Categoria, Orçamento mensal |
+## 🧠 Leitura de Recibos com IA ✨
 
-## Extra: leitura de recibos com IA ✨
-
-Nas Definições podes colar uma API Key da Anthropic — ao fotografares um recibo, a IA preenche o valor, a descrição e a categoria automaticamente.
+Nas Definições da aplicação podes inserir uma API Key da **Anthropic** (Claude). Ao tirares uma fotografia a um recibo físico ou de supermercado pela câmara do telemóvel, a IA analisa a imagem e preenche automaticamente o **valor**, a **descrição (estabelecimento)** e a **categoria** sugerida. A chave da API fica guardada de forma 100% segura e local no `localStorage` do teu browser.
