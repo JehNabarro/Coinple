@@ -13,23 +13,6 @@ Uma aplicação web elegante, estilizada em tons de ouro 💛 e rosa 💗, para 
 4. **Sincronização**: O teu par entra com a conta Google dele, introduz o link da planilha partilhada e... as contas ficam ligadas! 💛💗
 5. **Colaboração**: Despesas, orçamentos, fotos de perfil e dados são sincronizados em tempo real diretamente da planilha. Qualquer alteração reflete-se instantaneamente nos dispositivos de ambos.
 6. **Backup Local**: Nas definições da aplicação, há um botão **⬇️ Baixar Excel** para descarregar o ficheiro `Coinple.xlsx` localmente a qualquer momento.
-
----
-
-## 🔒 Proteção de Credenciais contra Forks
-
-Para proteger a tua credencial (o **Google Client ID**) de ficar exposta publicamente no GitHub ou em eventuais *forks* do projeto, a configuração foi separada:
-
-1. O ficheiro `js/config.js` está configurado no `.gitignore` e **nunca** será enviado para o repositório público.
-2. No repositório, existe o ficheiro de exemplo `js/config.example.js`.
-3. Para configurar as tuas credenciais localmente, faz uma cópia do ficheiro:
-   ```bash
-   cp js/config.example.js js/config.js
-   ```
-4. Edita o novo ficheiro `js/config.js` e coloca o teu Client ID na chave `GOOGLE_CLIENT_ID`.
-
----
-
 ## 🛠️ Configurar o Google OAuth (Passo a Passo)
 
 Como a aplicação corre 100% no cliente (browser) sem servidor intermediário, precisas de criar um **OAuth Client ID** grátis para que a aplicação possa falar com a API do Google Sheets:
@@ -45,7 +28,7 @@ Como a aplicação corre 100% no cliente (browser) sem servidor intermediário, 
    * **Origens JavaScript autorizadas**: Adiciona `http://localhost:3457` (para desenvolvimento local) e a URL de produção onde alojares a aplicação (ex: `https://coinple.vercel.app`).
    * Clica em criar.
 5. Copia o **Client ID** gerado (termina em `.apps.googleusercontent.com`).
-6. Cola-o no teu ficheiro local `js/config.js` na propriedade `GOOGLE_CLIENT_ID`.
+6. Cola-o no ficheiro `js/config.js` na propriedade `GOOGLE_CLIENT_ID`.
 
 ---
 
