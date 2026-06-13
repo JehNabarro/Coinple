@@ -17,6 +17,21 @@
   <!-- Android / Chrome -->
   <link rel="manifest" href="manifest.json" />
 
+  <!-- Canonical URL (helps PWA identify the correct base) -->
+  <link rel="canonical" href="https://jehnabarro.github.io/Coinple/" />
+
+  <!-- Redirect to correct GitHub Pages path if accessed from root -->
+  <script>
+    (function() {
+      var correctBase = '/Coinple/';
+      if (location.hostname === 'jehnabarro.github.io' &&
+          location.pathname !== correctBase &&
+          !location.pathname.startsWith(correctBase)) {
+        location.replace('https://jehnabarro.github.io/Coinple/' + location.search + location.hash);
+      }
+    })();
+  </script>
+
   <title>Coinple — Finanças para casais</title>
 
   <!-- Icons -->
