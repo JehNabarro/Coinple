@@ -67,7 +67,14 @@ function requestAccessToken({ silent = false } = {}) {
 
 async function getValidToken() {
   if (gisAccessToken && Date.now() < gisTokenExpiry) return gisAccessToken;
-  return requestAccessToken({ silent: true });
+  // Tenta token silencioso (sem prompt) — se falhar, retorna null
+  // A app continua com dados locais e só pede login quando o utilizador
+  // tenta uma ação que requer acesso à planilha
+  try {
+    return await requestAccessToken({ silent: true });
+  } catch (e) {
+    return null;
+  }
 }
 
 async function fetchGoogleProfile() {

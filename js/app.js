@@ -320,6 +320,13 @@ async function syncFromSheet({ quiet = false, register = false } = {}) {
   syncing = true;
   document.getElementById('btn-sync')?.classList.add('spinning');
   try {
+    // Garante token válido antes de sincronizar
+    const token = await getValidToken();
+    if (!token) {
+      // Sem token — usa dados locais, sem interromper o utilizador
+      if (!quiet) showToast('Sessão expirada — toca em 🔄 para re-autenticar');
+      return;
+    }
     const { expenses, partners, budgets } = await loadCoupleSheet(state.spreadsheetId);
     state.expenses = expenses;
     state.partners = partners;
@@ -940,9 +947,18 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btn-save-settings').addEventListener('click', saveSettings);
 
   // Decide vista inicial
+  // Se o utilizador já fez login antes, mostramos a app imediatamente
+  // com os dados do localStorage — sem pedir login novamente.
+  // O token Google é pedido em background apenas para sincronizar.
   if (state.user && (state.demoMode || state.spreadsheetId)) {
     showView('app');
-    if (!state.demoMode) syncFromSheet({ quiet: true }).catch(() => {});
+    if (!state.demoMode) {
+      // Tenta obter token silencioso e sincroniza — se falhar, a app
+      // continua a funcionar com os dados locais (sem interromper o utilizador)
+      getValidToken()
+        .then(() => syncFromSheet({ quiet: true }))
+        .catch(() => { /* token expirado — dados locais são usados */ });
+    }
   } else if (state.user && !state.demoMode) {
     showView('setup');
   } else {
