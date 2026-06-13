@@ -23,6 +23,11 @@
   --radius-sm:  10px;
   --tab-h:      68px;
   --header-h:   60px;
+  /* Safe area insets para PWA standalone (notch / home indicator iOS) */
+  --sat: env(safe-area-inset-top,    0px);
+  --sab: env(safe-area-inset-bottom, 0px);
+  --sal: env(safe-area-inset-left,   0px);
+  --sar: env(safe-area-inset-right,  0px);
   /* Splash / app plum-glow background */
   --bg-glow:
     radial-gradient(120% 80% at 50% 62%, #3d0a30 0%, #220519 34%, #0d0309 66%, #000000 100%);
@@ -261,6 +266,8 @@ body.in-setup #setup-screen { display: block; }
   position: relative;
   overflow: hidden;
   background: var(--bg-glow);
+  /* Garante que nada fica atrás da barra de estado iOS */
+  padding-top: var(--sat);
 }
 
 /* ── Header ── */
@@ -274,12 +281,28 @@ body.in-setup #setup-screen { display: block; }
   align-items: center;
   justify-content: space-between;
   padding: 0 16px 0 20px;
+  padding-left: calc(20px + var(--sal));
+  padding-right: calc(16px + var(--sar));
   flex-shrink: 0;
   position: relative;
   z-index: 10;
 }
 
-.header-brand { display: flex; align-items: center; gap: 10px; }
+.header-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  border-radius: var(--radius-sm);
+  transition: opacity 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.header-brand:hover  { opacity: 0.8; }
+.header-brand:active { opacity: 0.6; transform: scale(0.97); }
+
 
 .header-logo {
   width: 38px;
@@ -352,13 +375,14 @@ body.in-setup #setup-screen { display: block; }
 
 /* ── Bottom tab bar ── */
 .tab-bar {
-  height: var(--tab-h);
+  height: calc(var(--tab-h) + var(--sab));
   background: rgba(20, 10, 16, 0.82);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
   border-top: 1px solid var(--border);
   display: flex;
-  align-items: stretch;
+  align-items: flex-start;
+  padding-bottom: var(--sab);
   flex-shrink: 0;
   position: relative;
   z-index: 10;
