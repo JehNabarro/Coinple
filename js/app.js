@@ -43,7 +43,7 @@ function saveState() {
 
 /* ── Helpers ── */
 function formatCurrency(amount) {
-  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(amount);
+  return new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR' }).format(amount);
 }
 
 function formatDate(dateStr) {
@@ -378,7 +378,7 @@ function renderCoupleCard() {
     namesEl.textContent = firstName(ps[0].name);
     subEl.textContent = 'À espera do teu par — partilha o link da planilha 💌';
   } else {
-    photos.innerHTML = '<span class="couple-heart" style="font-size:34px">🪙💕</span>';
+    photos.innerHTML = '<img src="assets/coinple-logo.png" alt="Coinple" style="height:44px;width:auto;object-fit:contain">';
     namesEl.textContent = 'Coinple';
     subEl.textContent = '';
   }

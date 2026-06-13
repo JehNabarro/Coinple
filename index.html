@@ -3,22 +3,44 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <meta name="theme-color" content="#E0A82E" />
+
+  <!-- PWA / Theme -->
+  <meta name="theme-color" content="#0a0207" />
+  <meta name="application-name" content="Coinple" />
+  <meta name="description" content="Gestão de finanças partilhada para casais" />
+
+  <!-- iOS Home Screen -->
   <meta name="apple-mobile-web-app-capable" content="yes" />
-  <title>Coinple 🪙💕</title>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Coinple" />
+
+  <!-- Android / Chrome -->
+  <link rel="manifest" href="manifest.json" />
+
+  <title>Coinple — Finanças para casais</title>
+
+  <!-- Icons -->
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon.png" />
+  <link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&display=swap" />
   <link rel="stylesheet" href="css/style.css" />
 </head>
 <body class="logged-out">
 
-<!-- ── Login screen ── -->
+<!-- ── Login / Splash screen ── -->
 <div id="login-screen">
   <div class="login-inner">
-    <div class="login-logo">
-      <span class="login-coin">🪙</span>
-      <span class="login-heart">💗</span>
+    <div class="branding">
+      <div class="brand-logo">
+        <img src="assets/coinple-logo.png" alt="Coinple" />
+      </div>
+      <h1 class="brand-name">Coinple</h1>
+      <p class="brand-slogan">Finanças para casais</p>
     </div>
-    <h1 class="login-title">Coinple</h1>
-    <p class="login-tagline">Finanças a dois, com amor 💛💗</p>
 
     <button class="btn-google" id="btn-google-login">
       <svg width="20" height="20" viewBox="0 0 48 48">
@@ -82,7 +104,7 @@
   <!-- ── Header ── -->
   <header class="app-header">
     <div class="header-brand">
-      <span class="header-logo">🪙💕</span>
+      <span class="header-logo"><img src="assets/coinple-logo.png" alt="Coinple" /></span>
       <div>
         <h1>Coinple</h1>
         <div class="header-subtitle" id="header-month"></div>

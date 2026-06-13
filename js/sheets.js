@@ -149,7 +149,7 @@ function exportExpensesXlsx(expenses, categories, partners) {
       Data: e.date,
       'Descrição': e.description,
       Categoria: catName(e.category),
-      'Valor (R$)': e.amount,
+      'Valor (€)': e.amount,
       'Pago por': e.payerName || e.payerEmail,
     }));
   const wb = XLSX.utils.book_new();
