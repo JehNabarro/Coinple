@@ -91,11 +91,17 @@ async function loadCoupleSheet(id) {
     .map((r) => ({ email: String(r[0]), name: String(r[1] || r[0]), photo: String(r[2] || '') }));
 
   const budgets = {};
+  let totalBudget = 0;
   (budgetRows || []).forEach((r) => {
-    if (r[0]) budgets[String(r[0])] = parseFloat(String(r[1]).replace(',', '.')) || 0;
+    if (!r[0]) return;
+    if (String(r[0]) === '_total') {
+      totalBudget = parseFloat(String(r[1]).replace(',', '.')) || 0;
+    } else {
+      budgets[String(r[0])] = parseFloat(String(r[1]).replace(',', '.')) || 0;
+    }
   });
 
-  return { expenses, partners, budgets };
+  return { expenses, partners, budgets, totalBudget };
 }
 
 function expenseToRow(e) {
@@ -129,11 +135,15 @@ async function savePartnersToSheet(id, partners) {
   }
 }
 
-async function saveBudgetsToSheet(id, categories) {
+async function saveBudgetsToSheet(id, categories, totalBudget = 0) {
   await sheetsFetch(`/${id}/values/${encodeURIComponent('Orçamentos!A2:B')}:clear`, { method: 'POST' });
+  const rows = [
+    ['_total', totalBudget || 0],
+    ...categories.map((c) => [c.id, c.budget || 0]),
+  ];
   await sheetsFetch(`/${id}/values/${encodeURIComponent('Orçamentos!A2')}?valueInputOption=RAW`, {
     method: 'PUT',
-    body: JSON.stringify({ values: categories.map((c) => [c.id, c.budget || 0]) }),
+    body: JSON.stringify({ values: rows }),
   });
 }
 

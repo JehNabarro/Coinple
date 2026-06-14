@@ -3,26 +3,29 @@
 
 :root {
   /* ── Dark theme (plum/black) ── */
-  --bg:         #0a0207;
-  --bg-card:    #1b1018;
-  --bg-elev:    #241522;
-  --gold:       #D3A544;
-  --gold-dark:  #E6B95A;
-  --gold-lt:    rgba(211, 165, 68, 0.14);
-  --pink:       #EC4899;
-  --pink-dark:  #F472B6;
-  --pink-lt:    rgba(236, 72, 153, 0.16);
-  --grad:       linear-gradient(135deg, #F2B93B 0%, #EC4899 100%);
-  --text:       #F6EEF2;
-  --text-muted: #9C8A95;
-  --border:     #33212c;
-  --danger:     #FF6B6B;
-  --shadow:     0 2px 14px rgba(0, 0, 0, 0.45);
-  --shadow-lg:  0 12px 40px rgba(236, 72, 153, 0.28);
-  --radius:     16px;
-  --radius-sm:  10px;
-  --tab-h:      68px;
-  --header-h:   60px;
+  --bg:             #0a0207;
+  --bg-card:        #1b1018;
+  --bg-elev:        #241522;
+  --gold:           #D3A544;
+  --gold-dark:      #E6B95A;
+  --gold-lt:        rgba(211, 165, 68, 0.14);
+  --pink:           #EC4899;
+  --pink-dark:      #F472B6;
+  --pink-lt:        rgba(236, 72, 153, 0.16);
+  --grad:           linear-gradient(135deg, #F2B93B 0%, #EC4899 100%);
+  --text:           #F6EEF2;
+  --text-muted:     #9C8A95;
+  --border:         #33212c;
+  --danger:         #FF6B6B;
+  --shadow:         0 2px 14px rgba(0, 0, 0, 0.45);
+  --shadow-lg:      0 12px 40px rgba(236, 72, 153, 0.28);
+  --radius:         16px;
+  --radius-sm:      10px;
+  --tab-h:          68px;
+  --header-h:       60px;
+  --bg-glass:       rgba(20, 10, 16, 0.72);
+  --bg-glass-heavy: rgba(20, 10, 16, 0.82);
+  --bg-toast:       #2c1a24;
   /* Safe area insets para PWA standalone (notch / home indicator iOS) */
   --sat: env(safe-area-inset-top,    0px);
   --sab: env(safe-area-inset-bottom, 0px);
@@ -33,10 +36,35 @@
     radial-gradient(120% 80% at 50% 62%, #3d0a30 0%, #220519 34%, #0d0309 66%, #000000 100%);
 }
 
+/* ── Light theme overrides ── */
+html.light-theme {
+  color-scheme:     light;
+  --bg:             #FDF5F9;
+  --bg-card:        #FFFFFF;
+  --bg-elev:        #F5ECF3;
+  --gold:           #B8891F;
+  --gold-dark:      #9A7310;
+  --gold-lt:        rgba(184, 137, 31, 0.12);
+  --pink:           #C71D72;
+  --pink-dark:      #A5155C;
+  --pink-lt:        rgba(199, 29, 114, 0.10);
+  --text:           #1E0F1A;
+  --text-muted:     #7A5F6E;
+  --border:         #E8D5E2;
+  --danger:         #C53030;
+  --shadow:         0 2px 14px rgba(0, 0, 0, 0.08);
+  --shadow-lg:      0 12px 40px rgba(199, 29, 114, 0.15);
+  --bg-glass:       rgba(253, 245, 249, 0.90);
+  --bg-glass-heavy: rgba(253, 245, 249, 0.96);
+  --bg-toast:       #3D1A2E;
+  --bg-glow:
+    radial-gradient(120% 80% at 50% 62%, #FFE0F2 0%, #FFF0F9 34%, #FDF5F9 66%, #FFFFFF 100%);
+}
+
 html, body {
   height: 100%;
   font-family: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  background: #000;
+  background: var(--bg);
   color: var(--text);
   font-size: 16px;
   -webkit-font-smoothing: antialiased;
@@ -273,7 +301,7 @@ body.in-setup #setup-screen { display: block; }
 /* ── Header ── */
 .app-header {
   height: var(--header-h);
-  background: rgba(20, 10, 16, 0.72);
+  background: var(--bg-glass);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
   border-bottom: 1px solid var(--border);
@@ -376,7 +404,7 @@ body.in-setup #setup-screen { display: block; }
 /* ── Bottom tab bar ── */
 .tab-bar {
   height: calc(var(--tab-h) + var(--sab));
-  background: rgba(20, 10, 16, 0.82);
+  background: var(--bg-glass-heavy);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
   border-top: 1px solid var(--border);
@@ -1204,7 +1232,7 @@ body.in-setup #setup-screen { display: block; }
   position: fixed;
   bottom: calc(var(--tab-h) + 16px);
   left: 50%; transform: translateX(-50%);
-  background: #2c1a24;
+  background: var(--bg-toast);
   border: 1px solid var(--border);
   color: white;
   padding: 10px 20px;
@@ -1266,6 +1294,127 @@ body.in-setup #setup-screen { display: block; }
   height: 1px;
   background: var(--border);
 }
+
+/* ── Theme toggle switch ── */
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 46px;
+  height: 26px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+  position: absolute;
+}
+
+.toggle-slider {
+  position: absolute;
+  inset: 0;
+  background: var(--border);
+  border-radius: 13px;
+  transition: background 0.2s;
+}
+
+.toggle-slider::before {
+  content: '';
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  left: 3px;
+  top: 3px;
+  background: white;
+  border-radius: 50%;
+  transition: transform 0.2s;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+}
+
+.toggle-switch input:checked + .toggle-slider { background: var(--pink); }
+.toggle-switch input:checked + .toggle-slider::before { transform: translateX(20px); }
+
+/* ── Budget overview card (dashboard) ── */
+.budget-overview {
+  background: var(--bg-card);
+  border-radius: var(--radius);
+  padding: 16px 18px;
+  margin-bottom: 20px;
+  box-shadow: var(--shadow);
+  border: 1px solid var(--border);
+}
+
+.budget-overview-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.budget-overview-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.budget-overview-pct {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.budget-overview-amounts {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.budget-spent-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-bottom: 2px;
+}
+
+.budget-spent-value {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.budget-remaining-value {
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.budget-remaining-value.ok   { color: var(--gold-dark); }
+.budget-remaining-value.warn { color: var(--pink); }
+.budget-remaining-value.over { color: var(--danger); }
+
+/* Settings — allocation status bar */
+.budget-alloc-box {
+  background: var(--bg-elev);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  margin-bottom: 10px;
+  border: 1px solid var(--border);
+}
+
+.budget-alloc-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  font-size: 13px;
+}
+
+.budget-alloc-label { color: var(--text-muted); }
+
+.budget-alloc-value { font-weight: 600; }
+.budget-alloc-value.ok   { color: var(--gold-dark); }
+.budget-alloc-value.warn { color: var(--pink); }
+.budget-alloc-value.over { color: var(--danger); }
 
 /* ── Misc ── */
 .mt-8 { margin-top: 8px; }

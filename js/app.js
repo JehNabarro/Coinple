@@ -10,13 +10,15 @@ const DEFAULT_CATEGORIES = [
 ];
 
 let state = {
-  user: null,                 // { email, name, picture }
+  user: null,                 // { id, email, name, picture }
   demoMode: false,
-  spreadsheetId: null,
-  partners: [],               // [{ email, name, photo }] — máx. 2
+  coupleId: null,             // Supabase couple UUID
+  partners: [],               // [{ id, email, name, photo }] — máx. 2
   categories: JSON.parse(JSON.stringify(DEFAULT_CATEGORIES)),
   expenses: [],               // { id, amount, description, category, payerEmail, payerName, date, createdAt }
   settings: { apiKey: '' },
+  totalBudget: 0,             // orçamento total do mês
+  theme: 'dark',
 };
 
 /* ── Persistence ── */
@@ -29,9 +31,14 @@ function loadState() {
         ...state,
         ...parsed,
         categories: parsed.categories || JSON.parse(JSON.stringify(DEFAULT_CATEGORIES)),
-        partners: parsed.partners || [],
-        expenses: parsed.expenses || [],
-        settings: { apiKey: '', ...(parsed.settings || {}) },
+        partners:   parsed.partners   || [],
+        expenses:   parsed.expenses   || [],
+        settings:   { apiKey: '', ...(parsed.settings || {}) },
+        totalBudget: parsed.totalBudget || 0,
+        theme:       parsed.theme       || 'dark',
+        coupleId:    parsed.coupleId    || null,
+        // compatibilidade: migra spreadsheetId → coupleId
+        ...(parsed.spreadsheetId && !parsed.coupleId ? { spreadsheetId: undefined } : {}),
       };
     }
   } catch (e) { /* usa defaults */ }
@@ -61,6 +68,14 @@ function currentMonthKey() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 }
 
+function totalAllocated() {
+  return state.categories.reduce((s, c) => s + (c.budget || 0), 0);
+}
+
+function totalSpentThisMonth(mk) {
+  return expensesForMonth(mk).reduce((s, e) => s + (e.amount || 0), 0);
+}
+
 function getCategory(id) {
   return state.categories.find(c => c.id === id) || state.categories.find(c => c.id === 'outros') || state.categories[0];
 }
@@ -84,7 +99,11 @@ function progressClass(spent, budget) {
 }
 
 function generateId() {
-  return Date.now().toString(36) + Math.random().toString(36).slice(2);
+  return (crypto.randomUUID?.()) ||
+    'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+      const r = Math.random() * 16 | 0;
+      return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+    });
 }
 
 function groupByMonth(expenses) {
@@ -132,6 +151,17 @@ function payerLabel(e) {
   return firstName(p?.name || e.payerName || e.payerEmail);
 }
 
+/* ── Tema ── */
+function applyTheme(theme) {
+  document.documentElement.classList.toggle('light-theme', theme === 'light');
+}
+
+function toggleTheme(isLight) {
+  state.theme = isLight ? 'light' : 'dark';
+  applyTheme(state.theme);
+  saveState();
+}
+
 /* ── Views: login / setup / app ── */
 function showView(view) {
   document.body.classList.toggle('logged-out', view === 'login');
@@ -166,60 +196,36 @@ function showToast(msg) {
 }
 
 /* ── Login ── */
-async function handleGoogleLogin() {
-  if (window.location.protocol === 'file:') {
-    document.getElementById('login-hint').innerHTML =
-      '⚠️ <b>Erro:</b> O login do Google não funciona abrindo o ficheiro HTML diretamente (protocolo <code>file://</code>).<br>Tens de rodar um servidor local (ex: executando o comando <code>npx serve</code> como indicado no README.md).';
-    return;
-  }
+async function handleAuthSignIn(user) {
+  state.user = {
+    id:      user.id,
+    email:   user.email,
+    name:    user.user_metadata?.full_name || user.email,
+    picture: user.user_metadata?.avatar_url || '',
+  };
+  state.demoMode = false;
+  saveState();
 
-  const clientId = getGoogleClientId();
-  if (!clientId) {
-    document.getElementById('login-hint').textContent =
-      'Falta configurar o Google Client ID (botão abaixo). Vê o README.md para criar um grátis — ou experimenta o modo demo.';
-    return;
+  const profile = await getCurrentProfile();
+  if (profile?.couple_id) {
+    state.coupleId = profile.couple_id;
+    await syncFromSupabase({ quiet: true });
+    subscribeRealtime();
+    showView('app');
+  } else {
+    showView('setup');
   }
-  
-  try {
-    // Clear hints before starting
-    document.getElementById('login-hint').innerHTML = 'A abrir janela do Google...';
-    
-    await requestAccessToken();
-    const profile = await fetchGoogleProfile();
-    state.user = profile;
-    state.demoMode = false;
-    saveState();
-    if (state.spreadsheetId) {
-      await syncFromSheet({ quiet: true });
-      showView('app');
-    } else {
-      showView('setup');
-    }
-  } catch (err) {
-    let errMsg = err.message || 'Erro desconhecido';
-    if (errMsg === 'popup_closed') {
-      errMsg = 'Janela de login fechada antes de concluir.';
-    }
-    
-    let advice = '';
-    if (clientId === '871632126241-u203ascbj6hhb3dhpu21g2sn9caqcram.apps.googleusercontent.com') {
-      advice = '<br>💡 <b>Dica:</b> Estás a usar o Client ID padrão. Precisas de criar o teu próprio Client ID no Google Cloud Console e configurá-lo no botão abaixo para que o login funcione no teu computador/servidor.';
-    } else {
-      advice = '<br>💡 Se vires "Acesso bloqueado: erro de autorização / no registered origin", verifica se adicionaste <code>' + window.location.origin + '</code> nas "Origens JavaScript autorizadas" do teu Client ID no Google Cloud Console.';
-    }
-    
-    document.getElementById('login-hint').innerHTML = `Não deu certo: <b>${errMsg}</b>.${advice}`;
-  }
+  saveState();
 }
 
 function handleDemoLogin() {
-  state.user = { email: 'eu@coinple.demo', name: 'Eu', picture: '' };
+  state.user     = { id: null, email: 'eu@coinple.demo', name: 'Eu', picture: '' };
   state.demoMode = true;
-  state.spreadsheetId = null;
+  state.coupleId = null;
   if (!state.partners.length) {
     state.partners = [
-      { email: 'eu@coinple.demo', name: 'Eu', photo: '' },
-      { email: 'par@coinple.demo', name: 'Meu Amor', photo: '' },
+      { id: null, email: 'eu@coinple.demo',  name: 'Eu',        photo: '' },
+      { id: null, email: 'par@coinple.demo', name: 'Meu Amor',  photo: '' },
     ];
   }
   saveState();
@@ -227,31 +233,26 @@ function handleDemoLogin() {
   showToast('Modo demo — os dados ficam só neste aparelho 💛');
 }
 
-function handleConfigClientId() {
-  const current = getGoogleClientId();
-  const id = prompt(
-    'Cola aqui o teu Google OAuth Client ID (termina em .apps.googleusercontent.com).\nVê o README.md para criar um:',
-    current
-  );
-  if (id !== null) {
-    setGoogleClientId(id);
-    document.getElementById('login-hint').textContent = id.trim()
-      ? 'Client ID guardado! Agora toca em "Entrar com Google" 💛'
-      : 'Client ID removido.';
+async function handleLogout() {
+  if (!confirm('Sair da Coinple neste aparelho?')) return;
+  closeModal('modal-settings');
+  if (state.demoMode) {
+    state.user     = null;
+    state.demoMode = false;
+    saveState();
+    showView('login');
+  } else {
+    await handleLogout_supabase();
   }
 }
 
-function handleLogout() {
-  if (!confirm('Sair da Coinple neste aparelho?')) return;
-  clearAuth();
-  state.user = null;
-  state.demoMode = false;
-  saveState();
-  closeModal('modal-settings');
-  showView('login');
+async function handleLogout_supabase() {
+  if (realtimeChannel) { realtimeChannel.unsubscribe(); realtimeChannel = null; }
+  await _supabase.auth.signOut();
+  // onAuthStateChange SIGNED_OUT vai tratar do resto
 }
 
-/* ── Setup (juntar as duas contas) ── */
+/* ── Setup (criar / juntar casal) ── */
 function renderSetup() {
   const u = state.user || {};
   document.getElementById('setup-name').textContent = firstName(u.name);
@@ -261,113 +262,125 @@ function renderSetup() {
   document.getElementById('setup-share').style.display = 'none';
 }
 
-function ensureSelfInPartners() {
-  const u = state.user;
-  if (!u || getPartner(u.email)) return;
-  if (state.partners.length >= 2) {
-    throw new Error('Esta planilha já tem um casal completo 💔 Confirma o link com o teu par.');
-  }
-  state.partners.push({ email: u.email, name: u.name, photo: u.picture || '' });
-}
-
 async function handleCreateSheet() {
   const btn = document.getElementById('btn-create-sheet');
   btn.disabled = true; btn.textContent = 'A criar… 🪄';
   try {
-    const id = await createCoupleSheet(state.categories);
-    state.spreadsheetId = id;
-    state.partners = [];
-    ensureSelfInPartners();
-    await savePartnersToSheet(id, state.partners);
-    saveState();
-    const link = spreadsheetUrl(id);
-    document.getElementById('share-link').value = link;
+    const couple = await createCouple(state.categories, state.totalBudget);
+    state.coupleId = couple.id;
+    const profile = await getCurrentProfile();
+    const code = profile?.couples?.invite_code || couple.invite_code;
+    document.getElementById('share-link').value = code;
     document.getElementById('setup-share').style.display = '';
     document.getElementById('setup-share').scrollIntoView({ behavior: 'smooth' });
+    await syncFromSupabase({ quiet: true });
+    subscribeRealtime();
+    saveState();
   } catch (err) {
     showToast(`Erro: ${err.message}`);
   } finally {
-    btn.disabled = false; btn.textContent = 'Criar a nossa planilha';
+    btn.disabled = false; btn.textContent = 'Criar o nosso espaço';
   }
 }
 
 async function handleJoinSheet() {
-  const raw = document.getElementById('join-sheet-link').value;
-  const id = extractSpreadsheetId(raw);
-  if (!id) { showToast('Cola o link completo da planilha 💌'); return; }
+  const code = document.getElementById('join-sheet-link').value.trim();
+  if (!code) { showToast('Cola o código de convite 💌'); return; }
   const btn = document.getElementById('btn-join-sheet');
   btn.disabled = true; btn.textContent = 'A juntar… 💞';
   try {
-    state.spreadsheetId = id;
-    await syncFromSheet({ quiet: true, register: true });
+    const couple = await joinCouple(code);
+    state.coupleId = couple.id;
+    await syncFromSupabase({ quiet: true });
+    subscribeRealtime();
     saveState();
     showView('app');
     showToast('Contas juntas! Bem-vindos à Coinple 💛💗');
   } catch (err) {
-    state.spreadsheetId = null;
+    state.coupleId = null;
     showToast(`Erro: ${err.message}`);
   } finally {
     btn.disabled = false; btn.textContent = 'Juntar as nossas contas';
   }
 }
 
-/* ── Sync com a planilha ── */
+/* ── Sync com Supabase ── */
 let syncing = false;
+let realtimeChannel = null;
 
-async function syncFromSheet({ quiet = false, register = false } = {}) {
-  if (state.demoMode || !state.spreadsheetId) return;
+async function syncFromSupabase({ quiet = false } = {}) {
+  if (state.demoMode || !state.coupleId) return;
   if (syncing) return;
   syncing = true;
   document.getElementById('btn-sync')?.classList.add('spinning');
   try {
-    // Garante token válido antes de sincronizar
-    const token = await getValidToken();
-    if (!token) {
-      // Sem token — usa dados locais, sem interromper o utilizador
-      if (!quiet) showToast('Sessão expirada — toca em 🔄 para re-autenticar');
-      return;
-    }
-    const { expenses, partners, budgets } = await loadCoupleSheet(state.spreadsheetId);
+    const { expenses, partners, budgets, totalBudget } = await loadCoupleData();
     state.expenses = expenses;
     state.partners = partners;
+    if (totalBudget > 0) state.totalBudget = totalBudget;
     state.categories.forEach(c => {
       if (budgets[c.id] !== undefined) c.budget = budgets[c.id];
     });
-
-    if (register || (state.user && !getPartner(state.user.email))) {
-      ensureSelfInPartners();
-      await savePartnersToSheet(state.spreadsheetId, state.partners);
-    }
     saveState();
     if (activeScreen === 'dashboard') renderDashboard();
     if (activeScreen === 'history')   renderHistory();
-    if (!quiet) showToast('Sincronizado com a planilha 📊');
+    if (!quiet) showToast('Sincronizado 📊');
   } catch (err) {
     if (!quiet) showToast(`Erro ao sincronizar: ${err.message}`);
-    if (register) throw err;
   } finally {
     syncing = false;
     document.getElementById('btn-sync')?.classList.remove('spinning');
   }
 }
 
-function pushExpensesAsync() {
-  if (state.demoMode || !state.spreadsheetId) return;
-  rewriteExpensesInSheet(state.spreadsheetId, state.expenses)
-    .catch(err => showToast(`Aviso: não sincronizou (${err.message})`));
-}
-
-function pushPartnersAsync() {
-  if (state.demoMode || !state.spreadsheetId) return;
-  savePartnersToSheet(state.spreadsheetId, state.partners)
-    .catch(err => showToast(`Aviso: não sincronizou (${err.message})`));
+function subscribeRealtime() {
+  if (state.demoMode || !state.coupleId) return;
+  if (realtimeChannel) { realtimeChannel.unsubscribe(); realtimeChannel = null; }
+  realtimeChannel = subscribeToCouple(state.coupleId, () => {
+    syncFromSupabase({ quiet: true }).catch(() => {});
+  });
 }
 
 /* ── Dashboard ── */
 function renderDashboard() {
   renderCoupleCard();
+  renderBudgetOverview(currentMonthKey());
   renderCategoryCards(currentMonthKey());
   renderRecentExpenses(currentMonthKey());
+}
+
+function renderBudgetOverview(mk) {
+  const el = document.getElementById('budget-overview');
+  if (!el) return;
+  const total = state.totalBudget || 0;
+  if (!total) { el.innerHTML = ''; return; }
+
+  const spent = totalSpentThisMonth(mk);
+  const remaining = total - spent;
+  const pct = Math.min((spent / total) * 100, 100);
+  const barCls = pct >= 100 ? 'progress-red' : pct >= 75 ? 'progress-pink' : 'progress-gold';
+  const remCls = remaining < 0 ? 'over' : (remaining / total) < 0.25 ? 'warn' : 'ok';
+
+  el.innerHTML = `
+    <div class="budget-overview">
+      <div class="budget-overview-header">
+        <span class="budget-overview-title">💰 Orçamento do mês</span>
+        <span class="budget-overview-pct">${pct.toFixed(0)}% usado</span>
+      </div>
+      <div class="budget-overview-amounts">
+        <div>
+          <div class="budget-spent-label">Gasto</div>
+          <div class="budget-spent-value">${formatCurrency(spent)}</div>
+        </div>
+        <div style="text-align:right">
+          <div class="budget-spent-label">Disponível</div>
+          <div class="budget-remaining-value ${remCls}">${formatCurrency(remaining)}</div>
+        </div>
+      </div>
+      <div class="progress-bar" style="height:7px">
+        <div class="progress-fill ${barCls}" style="width:${pct}%"></div>
+      </div>
+    </div>`;
 }
 
 function renderCoupleCard() {
@@ -383,7 +396,7 @@ function renderCoupleCard() {
   } else if (ps.length === 1) {
     photos.innerHTML = `${avatarHtml(ps[0].email, 'avatar-xl')}<span class="couple-heart">💛💗</span><div class="avatar avatar-fallback avatar-xl tone-pink">?</div>`;
     namesEl.textContent = firstName(ps[0].name);
-    subEl.textContent = 'À espera do teu par — partilha o link da planilha 💌';
+    subEl.textContent = 'À espera do teu par — partilha o código de convite 💌';
   } else {
     photos.innerHTML = '<img src="assets/coinple-logo.png" alt="Coinple" style="height:44px;width:auto;object-fit:contain">';
     namesEl.textContent = 'Coinple';
@@ -480,7 +493,7 @@ function resetAddForm() {
 function renderPersonButtons() {
   const container = document.getElementById('person-selector');
   if (!state.partners.length) {
-    container.innerHTML = '<p class="text-muted" style="font-size:13px">Liga a planilha do casal nas definições 💌</p>';
+    container.innerHTML = '<p class="text-muted" style="font-size:13px">Liga a conta do casal nas definições 💌</p>';
     return;
   }
   container.innerHTML = state.partners.map(p => `
@@ -582,6 +595,16 @@ function submitExpense() {
   const form = readExpenseForm();
   if (!form) return;
 
+  if (state.totalBudget > 0) {
+    const mk = form.date.slice(0, 7);
+    const spent = totalSpentThisMonth(mk);
+    if (spent + form.amount > state.totalBudget) {
+      const avail = Math.max(0, state.totalBudget - spent);
+      showToast(`Orçamento esgotado! Disponível: ${formatCurrency(avail)}`);
+      return;
+    }
+  }
+
   const payer = getPartner(addFormState.payerEmail);
   const expense = {
     id:          generateId(),
@@ -597,8 +620,8 @@ function submitExpense() {
   state.expenses.push(expense);
   saveState();
 
-  if (!state.demoMode && state.spreadsheetId) {
-    appendExpenseToSheet(state.spreadsheetId, expense)
+  if (!state.demoMode && state.coupleId) {
+    appendExpenseToDb(state.coupleId, expense, payer?.id || null)
       .catch(err => showToast(`Aviso: não sincronizou (${err.message})`));
   }
 
@@ -704,7 +727,9 @@ function deleteExpense(id) {
   if (!confirm('Eliminar esta despesa?')) return;
   state.expenses = state.expenses.filter(e => e.id !== id);
   saveState();
-  pushExpensesAsync();
+  if (!state.demoMode && state.coupleId) {
+    deleteExpenseFromDb(id).catch(err => showToast(`Aviso: não sincronizou (${err.message})`));
+  }
   closeModal('modal-expense-detail');
   showToast('Despesa eliminada');
   if (activeScreen === 'dashboard') renderDashboard();
@@ -731,6 +756,15 @@ function editExpense(id) {
   btn.onclick = () => {
     const form = readExpenseForm();
     if (!form) return;
+    if (state.totalBudget > 0) {
+      const mk = form.date.slice(0, 7);
+      const spentWithoutThis = totalSpentThisMonth(mk) - (expense.amount || 0);
+      if (spentWithoutThis + form.amount > state.totalBudget) {
+        const avail = Math.max(0, state.totalBudget - spentWithoutThis);
+        showToast(`Orçamento esgotado! Disponível: ${formatCurrency(avail)}`);
+        return;
+      }
+    }
     const payer = getPartner(addFormState.payerEmail);
     expense.amount      = form.amount;
     expense.description = form.desc || getCategory(addFormState.selectedCategory).name;
@@ -739,7 +773,10 @@ function editExpense(id) {
     expense.payerName   = payer?.name || '';
     expense.date        = form.date;
     saveState();
-    pushExpensesAsync();
+    if (!state.demoMode && state.coupleId) {
+      updateExpenseInDb(expense, payer?.id || null)
+        .catch(err => showToast(`Aviso: não sincronizou (${err.message})`));
+    }
     showToast('Despesa atualizada! 💛');
     showScreen('dashboard');
   };
@@ -787,7 +824,10 @@ async function handlePartnerPhotoChange(event) {
     if (p) {
       p.photo = dataUrl;
       saveState();
-      pushPartnersAsync();
+      if (!state.demoMode && p.id) {
+        updateProfileInDb({ id: p.id, name: p.name, photo: dataUrl })
+          .catch(err => showToast(`Aviso: não sincronizou (${err.message})`));
+      }
       renderPartnerList();
       renderCoupleCard();
       showToast('Fotinho atualizada! 📸💕');
@@ -800,6 +840,8 @@ async function handlePartnerPhotoChange(event) {
 /* ── Settings Modal ── */
 function openSettings() {
   document.getElementById('set-apikey').value = state.settings.apiKey;
+  const themeToggle = document.getElementById('set-theme-light');
+  if (themeToggle) themeToggle.checked = state.theme === 'light';
   renderPartnerList();
   renderSheetStatus();
   renderCatBudgetList();
@@ -828,54 +870,130 @@ function renderPartnerList() {
 
 function renderSheetStatus() {
   const el = document.getElementById('sheet-status');
+  if (!el) return;
   if (state.demoMode) {
-    el.innerHTML = 'Modo demo — sem planilha ligada. Entra com Google para juntar as contas. 💛';
-  } else if (state.spreadsheetId) {
-    el.innerHTML = '✅ Planilha ligada — as despesas dos dois ficam gravadas no Excel do casal.';
+    el.innerHTML = 'Modo demo — sem conta partilhada. Entra com Google para juntar as contas. 💛';
+  } else if (state.coupleId) {
+    const code = document.getElementById('share-link')?.value || '';
+    el.innerHTML = `✅ Conta do casal ligada${code ? ` · Código: <b>${code}</b>` : ''} 🥰`;
   } else {
-    el.innerHTML = 'Sem planilha ligada.';
+    el.innerHTML = 'Sem conta partilhada ligada.';
   }
 }
 
 function renderCatBudgetList() {
+  const total = state.totalBudget || 0;
   const list = document.getElementById('cat-budget-list');
-  list.innerHTML = state.categories.map(cat => `
-    <div class="cat-edit-item">
-      <span class="cat-edit-emoji">${cat.emoji}</span>
-      <span class="cat-edit-name">${cat.name}</span>
-      <input class="cat-edit-budget" type="number" min="0" step="10"
-             value="${cat.budget || 0}" data-cat="${cat.id}"
-             onchange="updateCatBudget('${cat.id}', this.value)" />
-    </div>`).join('');
+  list.innerHTML = `
+    <div class="cat-edit-item" style="border-bottom:1.5px solid var(--gold);padding-bottom:14px;margin-bottom:4px">
+      <span class="cat-edit-emoji">💰</span>
+      <span class="cat-edit-name" style="font-weight:700">Total do mês</span>
+      <input class="cat-edit-budget" type="number" min="0" step="50"
+             id="set-total-budget" value="${total}"
+             oninput="onTotalBudgetInput(this.value)" />
+    </div>
+    <div id="budget-alloc-status"></div>
+    ${state.categories.map(cat => `
+      <div class="cat-edit-item">
+        <span class="cat-edit-emoji">${cat.emoji}</span>
+        <span class="cat-edit-name">${cat.name}</span>
+        <input class="cat-edit-budget" type="number" min="0" step="10"
+               value="${cat.budget || 0}" data-cat="${cat.id}"
+               oninput="updateCatBudget('${cat.id}', this.value)" />
+      </div>`).join('')}`;
+
+  renderBudgetAllocStatus();
+}
+
+function renderBudgetAllocStatus() {
+  const el = document.getElementById('budget-alloc-status');
+  if (!el) return;
+  const total = state.totalBudget || 0;
+  if (!total) { el.innerHTML = ''; return; }
+
+  const allocated = totalAllocated();
+  const remaining = total - allocated;
+  const allocPct = Math.min((allocated / total) * 100, 100);
+  const barCls = remaining < 0 ? 'progress-red' : remaining / total < 0.25 ? 'progress-pink' : 'progress-gold';
+  const allocCls = remaining < 0 ? 'over' : remaining / total < 0.1 ? 'warn' : 'ok';
+
+  el.innerHTML = `
+    <div class="budget-alloc-box">
+      <div class="budget-alloc-top">
+        <span class="budget-alloc-label">Distribuído</span>
+        <span class="budget-alloc-value ${allocCls}">${formatCurrency(allocated)} de ${formatCurrency(total)}</span>
+      </div>
+      <div class="progress-bar" style="margin-bottom:6px">
+        <div class="progress-fill ${barCls}" style="width:${allocPct}%"></div>
+      </div>
+      <div style="font-size:12px;color:var(--text-muted)">
+        ${remaining >= 0
+          ? `Disponível para distribuir: <b style="color:var(--gold-dark)">${formatCurrency(remaining)}</b>`
+          : `<span style="color:var(--danger)">⚠️ Excede em ${formatCurrency(-remaining)}</span>`}
+      </div>
+    </div>`;
+}
+
+function onTotalBudgetInput(value) {
+  state.totalBudget = parseFloat(value) || 0;
+  renderBudgetAllocStatus();
 }
 
 function updateCatBudget(id, value) {
   const cat = state.categories.find(c => c.id === id);
   if (cat) cat.budget = parseFloat(value) || 0;
+  renderBudgetAllocStatus();
 }
 
 function saveSettings() {
   state.settings.apiKey = document.getElementById('set-apikey').value.trim();
+
+  const totalInput = document.getElementById('set-total-budget');
+  if (totalInput) state.totalBudget = parseFloat(totalInput.value) || 0;
 
   document.querySelectorAll('.partner-name-input').forEach(input => {
     const p = getPartner(input.dataset.email);
     if (p && input.value.trim()) p.name = input.value.trim();
   });
 
-  saveState();
-  pushPartnersAsync();
-  if (!state.demoMode && state.spreadsheetId) {
-    saveBudgetsToSheet(state.spreadsheetId, state.categories)
-      .catch(err => showToast(`Aviso: não sincronizou (${err.message})`));
+  if (state.totalBudget > 0) {
+    const allocated = totalAllocated();
+    if (allocated > state.totalBudget) {
+      showToast(`⚠️ Categorias (${formatCurrency(allocated)}) excedem o total (${formatCurrency(state.totalBudget)})`);
+      return;
+    }
   }
+
+  saveState();
+
+  if (!state.demoMode && state.coupleId) {
+    saveBudgetsToDb(state.coupleId, state.categories, state.totalBudget)
+      .catch(err => showToast(`Aviso: orçamentos não sincronizados (${err.message})`));
+
+    state.partners.forEach(p => {
+      if (p.id) {
+        updateProfileInDb({ id: p.id, name: p.name, photo: p.photo })
+          .catch(() => {});
+      }
+    });
+  }
+
   closeModal('modal-settings');
   showToast('Definições guardadas! 💛');
   renderDashboard();
 }
 
 function handleOpenSheet() {
-  if (!state.spreadsheetId) { showToast('Sem planilha ligada'); return; }
-  window.open(spreadsheetUrl(state.spreadsheetId), '_blank');
+  if (!state.coupleId) { showToast('Sem conta partilhada ligada'); return; }
+  getCurrentProfile().then(profile => {
+    const code = profile?.couples?.invite_code;
+    if (code) {
+      navigator.clipboard?.writeText(code);
+      showToast(`Código copiado: ${code} 💌`);
+    } else {
+      showToast('Código de convite não disponível');
+    }
+  }).catch(() => showToast('Erro ao obter o código de convite'));
 }
 
 function handleExportXlsx() {
@@ -901,20 +1019,22 @@ function closeModal(id) {
 /* ── Init ── */
 document.addEventListener('DOMContentLoaded', () => {
   loadState();
+  applyTheme(state.theme || 'dark');
 
   // Login / setup
   document.getElementById('btn-google-login').addEventListener('click', handleGoogleLogin);
+  document.getElementById('btn-demo-login')?.addEventListener('click', handleDemoLogin);
   document.getElementById('btn-create-sheet').addEventListener('click', handleCreateSheet);
   document.getElementById('btn-join-sheet').addEventListener('click', handleJoinSheet);
   document.getElementById('btn-setup-done').addEventListener('click', () => { showView('app'); });
   document.getElementById('btn-setup-logout').addEventListener('click', () => {
-    clearAuth(); state.user = null; saveState(); showView('login');
+    _supabase.auth.signOut();
   });
   document.getElementById('btn-copy-link').addEventListener('click', () => {
     const input = document.getElementById('share-link');
     input.select();
     navigator.clipboard?.writeText(input.value);
-    showToast('Link copiado! 💌');
+    showToast('Código copiado! 💌');
   });
 
   // App
@@ -923,13 +1043,11 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('tab-history').addEventListener('click',   () => showScreen('history'));
 
   document.getElementById('btn-settings').addEventListener('click', openSettings);
-  document.getElementById('btn-sync').addEventListener('click', () => syncFromSheet());
+  document.getElementById('btn-sync').addEventListener('click', () => syncFromSupabase());
   document.getElementById('btn-logout').addEventListener('click', handleLogout);
 
   document.getElementById('receipt-file').addEventListener('change', handleReceiptUpload);
   document.getElementById('partner-photo-file').addEventListener('change', handlePartnerPhotoChange);
-  // O clique do botão "Guardar Despesa" é definido em resetAddForm/editExpense (onclick),
-  // para alternar entre criar e atualizar sem duplicar handlers.
 
   document.getElementById('btn-open-sheet').addEventListener('click', handleOpenSheet);
   document.getElementById('btn-export-xlsx').addEventListener('click', handleExportXlsx);
@@ -946,36 +1064,46 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.getElementById('btn-save-settings').addEventListener('click', saveSettings);
 
-  // Decide vista inicial
-  // Se o utilizador já fez login antes, mostramos a app imediatamente
-  // com os dados do localStorage — sem pedir login novamente.
-  // O token Google é pedido em background apenas para sincronizar.
-  if (state.user && (state.demoMode || state.spreadsheetId)) {
-    showView('app');
-    if (!state.demoMode) {
-      // Tenta obter token silencioso e sincroniza — se falhar, a app
-      // continua a funcionar com os dados locais (sem interromper o utilizador)
-      getValidToken()
-        .then(() => syncFromSheet({ quiet: true }))
-        .catch(() => { /* token expirado — dados locais são usados */ });
+  // Supabase Auth state listener — valida/invalida a sessão em background
+  _supabase.auth.onAuthStateChange(async (event, session) => {
+    if (state.demoMode) return; // demo mode ignora Supabase
+    if (event === 'SIGNED_IN' && session?.user) {
+      await handleAuthSignIn(session.user);
+    } else if (event === 'INITIAL_SESSION' && session?.user) {
+      // Sessão válida já existia — sincroniza silenciosamente se já na app
+      if (state.user && state.coupleId) {
+        syncFromSupabase({ quiet: true }).catch(() => {});
+        subscribeRealtime();
+      } else {
+        await handleAuthSignIn(session.user);
+      }
+    } else if (event === 'INITIAL_SESSION' && !session) {
+      // Sem sessão Supabase — limpa estado e vai para login
+      state.user = null; state.coupleId = null; saveState();
+      showView('login');
+    } else if (event === 'SIGNED_OUT') {
+      if (realtimeChannel) { realtimeChannel.unsubscribe(); realtimeChannel = null; }
+      state.user     = null;
+      state.demoMode = false;
+      state.coupleId = null;
+      saveState();
+      showView('login');
     }
-  } else if (state.user && !state.demoMode) {
-    showView('setup');
-  } else {
+  });
+
+  // Mostra a app imediatamente com dados locais (auth listener valida/invalida depois)
+  if (state.user && state.demoMode) {
+    showView('app');
+  } else if (state.user && state.coupleId) {
+    showView('app');
+  } else if (!state.user) {
     showView('login');
   }
 
   // Re-sincroniza quando a app volta ao primeiro plano
   document.addEventListener('visibilitychange', () => {
-    if (!document.hidden && state.user && !state.demoMode && state.spreadsheetId) {
-      syncFromSheet({ quiet: true }).catch(() => {});
+    if (!document.hidden && !state.demoMode && state.coupleId) {
+      syncFromSupabase({ quiet: true }).catch(() => {});
     }
   });
-
-  // Auto-sincroniza a cada 30 segundos se a app estiver ativa no browser
-  setInterval(() => {
-    if (!document.hidden && state.user && !state.demoMode && state.spreadsheetId) {
-      syncFromSheet({ quiet: true }).catch(() => {});
-    }
-  }, 30000);
 });

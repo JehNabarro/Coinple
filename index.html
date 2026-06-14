@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-PT">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
@@ -68,40 +68,37 @@
     </button>
 
     <p class="login-hint" id="login-hint"></p>
+    <button class="login-demo" id="btn-demo-login">Experimentar sem conta</button>
   </div>
 </div>
 
-<!-- ── Setup screen (link couple spreadsheet) ── -->
+<!-- ── Setup screen ── -->
 <div id="setup-screen">
   <div class="setup-inner">
     <div class="setup-greeting">
       <img id="setup-avatar" class="avatar avatar-lg" alt="" />
       <h2>Olá, <span id="setup-name">amor</span>! 👋</h2>
-      <p>Para juntar as vossas contas, a Coinple guarda tudo numa planilha (Excel online) partilhada pelos dois.</p>
+      <p>Para juntar as vossas contas, cria um espaço partilhado ou entra no espaço do teu par com o código de convite.</p>
     </div>
 
     <div class="setup-card">
       <div class="setup-card-title">💛 Somos os primeiros</div>
-      <p>Cria a planilha do casal na tua conta Google.</p>
-      <button class="btn btn-primary" id="btn-create-sheet">Criar a nossa planilha</button>
+      <p>Cria o espaço do casal e obtém o código de convite para partilhar.</p>
+      <button class="btn btn-primary" id="btn-create-sheet">Criar o nosso espaço</button>
     </div>
 
     <div class="setup-card">
       <div class="setup-card-title">💗 O meu par já criou</div>
-      <p>Cola aqui o link da planilha que recebeste.</p>
-      <input class="form-input" type="text" id="join-sheet-link" placeholder="https://docs.google.com/spreadsheets/…" />
+      <p>Introduz o código de convite que o teu par te enviou.</p>
+      <input class="form-input" type="text" id="join-sheet-link" placeholder="Código de convite (ex: a3f7b2c1)" />
       <div style="height:10px"></div>
       <button class="btn btn-pink" id="btn-join-sheet">Juntar as nossas contas</button>
     </div>
 
     <!-- After creating: share instructions -->
     <div class="setup-card setup-share" id="setup-share" style="display:none">
-      <div class="setup-card-title">🎉 Planilha criada!</div>
-      <p>Agora partilha com o teu par:</p>
-      <ol class="setup-steps">
-        <li>Copia o link abaixo e envia ao teu par 💌</li>
-        <li>Abre a planilha e clica em <b>Partilhar</b> para dar acesso de edição ao e-mail do teu par</li>
-      </ol>
+      <div class="setup-card-title">🎉 Espaço criado!</div>
+      <p>Envia este código ao teu par para ele entrar:</p>
       <div class="share-link-row">
         <input class="form-input" type="text" id="share-link" readonly />
         <button class="btn btn-secondary btn-sm" id="btn-copy-link">Copiar</button>
@@ -154,6 +151,9 @@
         <div class="couple-sub" id="couple-sub"></div>
       </div>
 
+      <!-- Budget overview -->
+      <div id="budget-overview"></div>
+
       <!-- Categories -->
       <div class="section-header">
         <span class="section-title">Categorias</span>
@@ -204,7 +204,7 @@
 
       <!-- Amount -->
       <div class="form-group">
-        <label class="form-label" for="expense-amount">Valor (R$)</label>
+        <label class="form-label" for="expense-amount">Valor (€)</label>
         <input class="form-input" type="number" id="expense-amount"
                placeholder="0,00" min="0" step="0.01" inputmode="decimal" />
       </div>
@@ -281,7 +281,7 @@
   <div class="modal">
     <div class="modal-handle"></div>
     <h2 class="modal-title" id="detail-title">Despesa</h2>
-    <div class="expense-detail-amount" id="detail-amount">R$ 0,00</div>
+    <div class="expense-detail-amount" id="detail-amount">€ 0,00</div>
     <div class="detail-row">
       <span class="detail-label">Categoria</span>
       <span class="detail-value" id="detail-cat">—</span>
@@ -311,16 +311,27 @@
     <h2 class="modal-title">Definições</h2>
 
     <div class="settings-section">
+      <div class="settings-section-title">Aparência</div>
+      <div class="settings-row">
+        <span class="settings-row-label">☀️ Tema claro</span>
+        <label class="toggle-switch">
+          <input type="checkbox" id="set-theme-light" onchange="toggleTheme(this.checked)" />
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+    </div>
+
+    <div class="settings-section">
       <div class="settings-section-title">Nosso casal 💛💗</div>
       <div id="partner-list"></div>
       <p class="settings-note">Toca na fotinho para mudar a foto 📸</p>
     </div>
 
     <div class="settings-section">
-      <div class="settings-section-title">Planilha do casal (Excel)</div>
+      <div class="settings-section-title">Conta do casal</div>
       <div id="sheet-status" class="sheet-status"></div>
       <div class="btn-row" style="margin-top:10px">
-        <button class="btn btn-secondary btn-sm" id="btn-open-sheet">📊 Abrir planilha</button>
+        <button class="btn btn-secondary btn-sm" id="btn-open-sheet">🔗 Copiar código</button>
         <button class="btn btn-secondary btn-sm" id="btn-export-xlsx">⬇️ Baixar Excel</button>
       </div>
     </div>
@@ -337,7 +348,7 @@
     </div>
 
     <div class="settings-section">
-      <div class="settings-section-title">Orçamentos Mensais (R$)</div>
+      <div class="settings-section-title">Orçamentos Mensais (€)</div>
       <div id="cat-budget-list"></div>
     </div>
 
@@ -357,11 +368,12 @@
 <div class="toast" id="toast"></div>
 
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
 <script src="js/config.js"></script>
-<script src="js/api.js"></script>
-<script src="js/auth.js"></script>
-<script src="js/sheets.js"></script>
-<script src="js/app.js"></script>
+<script src="js/api.js" defer></script>
+<script src="js/auth.js" defer></script>
+<script src="js/db.js" defer></script>
+<script src="js/app.js" defer></script>
 <script>
   // Set header month
   const months = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
