@@ -18,54 +18,24 @@ async function getCurrentProfile() {
 
 /* ── Setup: criar casal ── */
 async function createCouple(categories, totalBudget) {
-  const { data: { user } } = await _supabase.auth.getUser();
-  if (!user) throw new Error('Sem sessão ativa');
-
-  const { data: couple, error: coupleErr } = await _supabase
-    .from('couples')
-    .insert({ total_budget: totalBudget || 0 })
-    .select()
-    .single();
-  if (coupleErr) throw coupleErr;
-
-  const { error: profileErr } = await _supabase
-    .from('profiles')
-    .update({ couple_id: couple.id })
-    .eq('id', user.id);
-  if (profileErr) throw profileErr;
+  const { data: couple, error } = await _supabase
+    .rpc('fn_create_couple', { p_total_budget: totalBudget || 0 });
+  if (error) throw error;
 
   if (categories.length) {
-    await _supabase.from('budgets').insert(
+    const { error: budErr } = await _supabase.from('budgets').insert(
       categories.map(c => ({ couple_id: couple.id, category: c.id, amount: c.budget || 0 }))
     );
+    if (budErr) throw budErr;
   }
   return couple;
 }
 
 /* ── Setup: juntar casal por código ── */
 async function joinCouple(inviteCode) {
-  const { data: { user } } = await _supabase.auth.getUser();
-  if (!user) throw new Error('Sem sessão ativa');
-
   const { data: couple, error } = await _supabase
-    .from('couples')
-    .select('*')
-    .eq('invite_code', inviteCode.toLowerCase().trim())
-    .single();
-  if (error || !couple) throw new Error('Código inválido — confirma com o teu par 💌');
-
-  const { count } = await _supabase
-    .from('profiles')
-    .select('*', { count: 'exact', head: true })
-    .eq('couple_id', couple.id);
-  if (count >= 2) throw new Error('Este casal já está completo 💔');
-
-  const { error: profileErr } = await _supabase
-    .from('profiles')
-    .update({ couple_id: couple.id })
-    .eq('id', user.id);
-  if (profileErr) throw profileErr;
-
+    .rpc('fn_join_couple', { p_invite_code: inviteCode });
+  if (error) throw new Error(error.message);
   return couple;
 }
 
