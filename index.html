@@ -68,7 +68,6 @@
     </button>
 
     <p class="login-hint" id="login-hint"></p>
-    <button class="login-demo" id="btn-demo-login">Experimentar sem conta</button>
   </div>
 </div>
 
@@ -157,7 +156,7 @@
       <!-- Categories -->
       <div class="section-header">
         <span class="section-title">Categorias</span>
-        <button class="section-link" onclick="openSettings()">Editar orçamentos</button>
+        <button class="section-link" onclick="openBudgetModal()">Editar orçamentos</button>
       </div>
       <div class="categories-grid" id="categories-grid"></div>
 
@@ -347,17 +346,25 @@
       </p>
     </div>
 
-    <div class="settings-section">
-      <div class="settings-section-title">Orçamentos Mensais (€)</div>
-      <div id="cat-budget-list"></div>
-    </div>
-
     <div style="height:12px"></div>
     <button class="btn btn-primary" id="btn-save-settings">Guardar</button>
     <div style="height:10px"></div>
     <button class="btn btn-secondary" data-close-modal="modal-settings">Cancelar</button>
     <div style="height:10px"></div>
     <button class="btn btn-danger" id="btn-logout">Sair da conta</button>
+  </div>
+</div>
+
+<!-- Modal Orçamentos -->
+<div class="modal-backdrop" id="modal-budgets">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <h2 class="modal-title">Orçamentos Mensais</h2>
+    <div id="cat-budget-list"></div>
+    <div style="height:16px"></div>
+    <button class="btn btn-primary" id="btn-save-budgets">Guardar orçamentos</button>
+    <div style="height:10px"></div>
+    <button class="btn btn-secondary" data-close-modal="modal-budgets">Cancelar</button>
   </div>
 </div>
 

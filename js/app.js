@@ -416,6 +416,7 @@ function renderCategoryCards(mk) {
         <div class="cat-header">
           <div class="cat-icon" style="background:${cat.color}22">${cat.emoji}</div>
           <span class="cat-name">${cat.name}</span>
+          <button class="cat-add-btn" onclick="event.stopPropagation(); openAddWithCategory('${cat.id}')">+</button>
         </div>
         <div class="cat-amounts">
           <span class="cat-spent">${formatCurrency(spent)}</span>
@@ -426,6 +427,12 @@ function renderCategoryCards(mk) {
         </div>
       </div>`;
   }).join('');
+}
+
+function openAddWithCategory(catId) {
+  showScreen('add');
+  addFormState.selectedCategory = catId;
+  renderCategoryPills();
 }
 
 function renderRecentExpenses(mk) {
@@ -844,8 +851,12 @@ function openSettings() {
   if (themeToggle) themeToggle.checked = state.theme === 'light';
   renderPartnerList();
   renderSheetStatus();
-  renderCatBudgetList();
   openModal('modal-settings');
+}
+
+function openBudgetModal() {
+  renderCatBudgetList();
+  openModal('modal-budgets');
 }
 
 function renderPartnerList() {
@@ -948,13 +959,27 @@ function updateCatBudget(id, value) {
 function saveSettings() {
   state.settings.apiKey = document.getElementById('set-apikey').value.trim();
 
-  const totalInput = document.getElementById('set-total-budget');
-  if (totalInput) state.totalBudget = parseFloat(totalInput.value) || 0;
-
   document.querySelectorAll('.partner-name-input').forEach(input => {
     const p = getPartner(input.dataset.email);
     if (p && input.value.trim()) p.name = input.value.trim();
   });
+
+  saveState();
+
+  if (!state.demoMode && state.coupleId) {
+    state.partners.forEach(p => {
+      if (p.id) updateProfileInDb({ id: p.id, name: p.name, photo: p.photo }).catch(() => {});
+    });
+  }
+
+  closeModal('modal-settings');
+  showToast('Definições guardadas! 💛');
+  renderCoupleCard();
+}
+
+function saveBudgets() {
+  const totalInput = document.getElementById('set-total-budget');
+  if (totalInput) state.totalBudget = parseFloat(totalInput.value) || 0;
 
   if (state.totalBudget > 0) {
     const allocated = totalAllocated();
@@ -968,18 +993,11 @@ function saveSettings() {
 
   if (!state.demoMode && state.coupleId) {
     saveBudgetsToDb(state.coupleId, state.categories, state.totalBudget)
-      .catch(err => showToast(`Aviso: orçamentos não sincronizados (${err.message})`));
-
-    state.partners.forEach(p => {
-      if (p.id) {
-        updateProfileInDb({ id: p.id, name: p.name, photo: p.photo })
-          .catch(() => {});
-      }
-    });
+      .catch(err => showToast(`Aviso: não sincronizou (${err.message})`));
   }
 
-  closeModal('modal-settings');
-  showToast('Definições guardadas! 💛');
+  closeModal('modal-budgets');
+  showToast('Orçamentos guardados! 💰');
   renderDashboard();
 }
 
@@ -1023,7 +1041,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Login / setup
   document.getElementById('btn-google-login').addEventListener('click', handleGoogleLogin);
-  document.getElementById('btn-demo-login')?.addEventListener('click', handleDemoLogin);
   document.getElementById('btn-create-sheet').addEventListener('click', handleCreateSheet);
   document.getElementById('btn-join-sheet').addEventListener('click', handleJoinSheet);
   document.getElementById('btn-setup-done').addEventListener('click', () => { showView('app'); });
@@ -1039,7 +1056,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // App
   document.getElementById('tab-dashboard').addEventListener('click', () => showScreen('dashboard'));
-  document.getElementById('tab-add').addEventListener('click',       () => showScreen('add'));
+  document.getElementById('tab-add').addEventListener('click', () => {
+    showScreen('add');
+    if (historyFilters.category !== 'all' && activeScreen === 'history') {
+      addFormState.selectedCategory = historyFilters.category;
+      renderCategoryPills();
+    }
+  });
   document.getElementById('tab-history').addEventListener('click',   () => showScreen('history'));
 
   document.getElementById('btn-settings').addEventListener('click', openSettings);
@@ -1063,6 +1086,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   document.getElementById('btn-save-settings').addEventListener('click', saveSettings);
+  document.getElementById('btn-save-budgets').addEventListener('click', saveBudgets);
 
   // Supabase Auth state listener — valida/invalida a sessão em background
   _supabase.auth.onAuthStateChange(async (event, session) => {

@@ -412,7 +412,10 @@ body.in-setup #setup-screen { display: block; }
   align-items: flex-start;
   padding-bottom: var(--sab);
   flex-shrink: 0;
-  position: relative;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
   z-index: 10;
 }
 
@@ -546,9 +549,32 @@ body.in-setup #setup-screen { display: block; }
   box-shadow: var(--shadow);
   cursor: pointer;
   transition: transform 0.12s, box-shadow 0.12s;
+  position: relative;
 }
 
 .cat-card:active { transform: scale(0.97); }
+
+.cat-add-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--grad);
+  color: white;
+  border: none;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px rgba(236, 72, 153, 0.35);
+  flex-shrink: 0;
+}
+
+.cat-add-btn:active { transform: scale(0.9); }
 
 .cat-header {
   display: flex;
