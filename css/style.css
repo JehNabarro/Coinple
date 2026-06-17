@@ -272,8 +272,11 @@ body.in-setup #setup-screen { display: block; }
 /* ── Dashboard hero (paisagem + logo) ── */
 .dash-hero {
   position: relative;
-  height: 230px;
-  background: url('../assets/landscape-header.png') center top / cover no-repeat;
+  height: clamp(210px, 32vh, 320px);
+  background-image: url('../assets/landscape-header.png');
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: cover;
 }
 
 .header-brand {
@@ -291,7 +294,7 @@ body.in-setup #setup-screen { display: block; }
 }
 .header-brand:active { opacity: 0.7; transform: scale(0.97); }
 
-.hero-logo { height: 30px; width: auto; display: block; }
+.hero-logo { width: 190px; max-width: 60vw; height: auto; display: block; }
 
 /* ── Finance card (cartão principal) ── */
 .finance-card {

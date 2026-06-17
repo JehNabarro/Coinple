@@ -365,7 +365,7 @@ function renderBudgetOverview(mk) {
     </div>
     <div class="finance-progress">
       <div class="finance-progress-fill" style="width:${pct}%"></div>
-      <span class="finance-progress-marker" style="left:${pct}%">💸</span>
+      <span class="finance-progress-marker" style="left:${pct}%;font-size:${(20 * (1 + pct / 100)).toFixed(1)}px">💸</span>
     </div>`;
 }
 
