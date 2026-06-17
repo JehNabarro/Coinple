@@ -1,12 +1,13 @@
 /* ── State ── */
+// Ordem alinhada ao design: 3 cartões grandes (em cima) + 4 pequenos (em baixo)
 const DEFAULT_CATEGORIES = [
-  { id: 'lazer',        name: 'Lazer',        emoji: '🎉', budget: 200, color: '#EC4899' },
-  { id: 'gasolina',     name: 'Gasolina',     emoji: '⛽', budget: 300, color: '#E0A82E' },
-  { id: 'supermercado', name: 'Supermercado', emoji: '🛒', budget: 600, color: '#10B981' },
-  { id: 'restaurantes', name: 'Restaurantes', emoji: '🍽️', budget: 250, color: '#F472B6' },
-  { id: 'casa',         name: 'Casa',         emoji: '🏠', budget: 800, color: '#C28E1B' },
-  { id: 'saude',        name: 'Saúde',        emoji: '💊', budget: 150, color: '#8B5CF6' },
-  { id: 'outros',       name: 'Outros',       emoji: '📦', budget: 100, color: '#6B7280' },
+  { id: 'lazer',        name: 'Lazer',        emoji: '🎉', budget: 300,  color: '#EC4899' },
+  { id: 'supermercado', name: 'Supermercado', emoji: '🛒', budget: 1500, color: '#10B981' },
+  { id: 'restaurantes', name: 'Restaurantes', emoji: '🍽️', budget: 300,  color: '#F472B6' },
+  { id: 'gasolina',     name: 'Gasolina',     emoji: '⛽', budget: 200,  color: '#E0A82E' },
+  { id: 'saude',        name: 'Saúde',        emoji: '💊', budget: 150,  color: '#8B5CF6' },
+  { id: 'outros',       name: 'Outros',       emoji: '📦', budget: 100,  color: '#6B7280' },
+  { id: 'casa',         name: 'Casa',         emoji: '🏠', budget: 1000, color: '#C28E1B' },
 ];
 
 let state = {
@@ -352,34 +353,19 @@ function renderDashboard() {
 function renderBudgetOverview(mk) {
   const el = document.getElementById('budget-overview');
   if (!el) return;
-  const total = state.totalBudget || 0;
-  if (!total) { el.innerHTML = ''; return; }
-
+  const total = state.totalBudget || totalAllocated();
   const spent = totalSpentThisMonth(mk);
   const remaining = total - spent;
-  const pct = Math.min((spent / total) * 100, 100);
-  const barCls = pct >= 100 ? 'progress-red' : pct >= 75 ? 'progress-pink' : 'progress-gold';
-  const remCls = remaining < 0 ? 'over' : (remaining / total) < 0.25 ? 'warn' : 'ok';
+  const pct = total ? Math.min((spent / total) * 100, 100) : 0;
 
   el.innerHTML = `
-    <div class="budget-overview">
-      <div class="budget-overview-header">
-        <span class="budget-overview-title">💰 Orçamento do mês</span>
-        <span class="budget-overview-pct">${pct.toFixed(0)}% usado</span>
-      </div>
-      <div class="budget-overview-amounts">
-        <div>
-          <div class="budget-spent-label">Gasto</div>
-          <div class="budget-spent-value">${formatCurrency(spent)}</div>
-        </div>
-        <div style="text-align:right">
-          <div class="budget-spent-label">Disponível</div>
-          <div class="budget-remaining-value ${remCls}">${formatCurrency(remaining)}</div>
-        </div>
-      </div>
-      <div class="progress-bar" style="height:7px">
-        <div class="progress-fill ${barCls}" style="width:${pct}%"></div>
-      </div>
+    <div class="finance-total">
+      <div class="finance-total-amt ${remaining < 0 ? 'neg' : ''}">${formatCurrency(remaining)}</div>
+      <div class="finance-total-label">total disponível</div>
+    </div>
+    <div class="finance-progress">
+      <div class="finance-progress-fill" style="width:${pct}%"></div>
+      <span class="finance-progress-marker" style="left:${pct}%">💸</span>
     </div>`;
 }
 
@@ -406,27 +392,28 @@ function renderCoupleCard() {
 
 function renderCategoryCards(mk) {
   const grid = document.getElementById('categories-grid');
-  grid.innerHTML = state.categories.map(cat => {
+  const cats = state.categories;
+  const big = cats.slice(0, 3);
+  const small = cats.slice(3);
+
+  const card = (cat, isBig) => {
     const spent  = spentByCategory(cat.id, mk);
     const budget = cat.budget || 0;
-    const pct    = budget ? Math.min((spent / budget) * 100, 100) : 0;
-    const cls    = progressClass(spent, budget);
+    const avail  = budget - spent;
+    const tint   = `color-mix(in srgb, ${cat.color} 16%, #fff)`;
     return `
-      <div class="cat-card" onclick="filterHistoryByCat('${cat.id}')">
-        <div class="cat-header">
-          <div class="cat-icon" style="background:${cat.color}22">${cat.emoji}</div>
-          <span class="cat-name">${cat.name}</span>
-          <button class="cat-add-btn" onclick="event.stopPropagation(); openAddWithCategory('${cat.id}')">+</button>
-        </div>
-        <div class="cat-amounts">
-          <span class="cat-spent">${formatCurrency(spent)}</span>
-          <span class="cat-budget">de ${formatCurrency(budget)}</span>
-        </div>
-        <div class="progress-bar">
-          <div class="progress-fill ${cls}" style="width:${pct}%"></div>
-        </div>
+      <div class="cat-card ${isBig ? 'big' : 'small'}" style="background:${tint}"
+           onclick="filterHistoryByCat('${cat.id}')" title="${cat.name}">
+        <div class="cat-icon-wrap">${cat.emoji}</div>
+        <div class="cat-avail ${avail < 0 ? 'neg' : ''}">${formatCurrency(avail)}</div>
+        ${isBig ? `<div class="cat-avail-label">disponível</div>
+        <div class="cat-budget-line">de ${formatCurrency(budget)}</div>` : ''}
       </div>`;
-  }).join('');
+  };
+
+  grid.innerHTML = `
+    <div class="cat-row-big">${big.map(c => card(c, true)).join('')}</div>
+    <div class="cat-row-small">${small.map(c => card(c, false)).join('')}</div>`;
 }
 
 function openAddWithCategory(catId) {
@@ -1064,8 +1051,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
   document.getElementById('tab-history').addEventListener('click',   () => showScreen('history'));
+  document.getElementById('tab-settings').addEventListener('click', openSettings);
 
-  document.getElementById('btn-settings').addEventListener('click', openSettings);
   document.getElementById('btn-sync').addEventListener('click', () => syncFromSupabase());
   document.getElementById('btn-logout').addEventListener('click', handleLogout);
 

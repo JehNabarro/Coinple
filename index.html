@@ -51,9 +51,8 @@
   <div class="login-inner">
     <div class="branding">
       <div class="brand-logo">
-        <img src="assets/coinple-logo.png" alt="Coinple" />
+        <img src="assets/logo-stacked.svg" alt="Coinple" />
       </div>
-      <h1 class="brand-name">Coinple</h1>
       <p class="brand-slogan">Finanças para casais</p>
     </div>
 
@@ -112,61 +111,51 @@
 
 <div id="app">
 
-  <!-- ── Header ── -->
-  <header class="app-header">
-    <button class="header-brand" onclick="showScreen('dashboard')" aria-label="Início">
-      <span class="header-logo"><img src="assets/coinple-logo.png" alt="Coinple" /></span>
-      <div>
-        <h1>Coinple</h1>
-        <div class="header-subtitle" id="header-month"></div>
-      </div>
-    </button>
-    <div class="header-actions">
-      <button class="btn-icon" id="btn-sync" aria-label="Sincronizar">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
-          <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
-        </svg>
-      </button>
-      <button class="btn-icon" id="btn-settings" aria-label="Definições">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="3"/>
-          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-        </svg>
-      </button>
-    </div>
-  </header>
-
   <!-- ── Screens ── -->
   <div class="screens">
 
     <!-- Dashboard -->
     <section id="screen-dashboard" class="screen active">
 
-      <!-- Couple card -->
-      <div class="couple-card">
+      <!-- Hero: paisagem + logo -->
+      <div class="dash-hero">
+        <button class="header-brand" onclick="showScreen('dashboard')" aria-label="Início">
+          <img class="hero-logo" src="assets/logo-inline.svg" alt="Coinple" />
+        </button>
+      </div>
+
+      <!-- Finance card -->
+      <div class="finance-card">
         <div class="couple-photos" id="couple-photos"></div>
-        <div class="couple-names" id="couple-names">Coinple</div>
-        <div class="couple-sub" id="couple-sub"></div>
-      </div>
+        <div class="finance-title-row">
+          <span class="finance-bar"></span>
+          <div>
+            <h2 class="finance-title">Tranquilidade Financeira</h2>
+            <div class="finance-names" id="couple-names"></div>
+            <div class="couple-sub" id="couple-sub" hidden></div>
+          </div>
+        </div>
 
-      <!-- Budget overview -->
-      <div id="budget-overview"></div>
+        <!-- Total disponível + progresso -->
+        <div id="budget-overview"></div>
 
-      <!-- Categories -->
-      <div class="section-header">
-        <span class="section-title">Categorias</span>
-        <button class="section-link" onclick="openBudgetModal()">Editar orçamentos</button>
+        <!-- Categorias -->
+        <div class="categories-grid" id="categories-grid"></div>
+
+        <div class="section-header" style="margin-top:18px">
+          <span class="section-link" onclick="openBudgetModal()">Editar orçamentos</span>
+        </div>
       </div>
-      <div class="categories-grid" id="categories-grid"></div>
 
       <!-- Recent expenses -->
-      <div class="section-header">
-        <span class="section-title">Últimas despesas</span>
-        <button class="section-link" onclick="showScreen('history')">Ver todas</button>
-      </div>
-      <div class="card" style="padding: 8px 18px">
-        <div id="recent-expenses"></div>
+      <div class="dash-section">
+        <div class="section-header">
+          <span class="section-title">Últimas despesas</span>
+          <button class="section-link" onclick="showScreen('history')">Ver todas</button>
+        </div>
+        <div class="card" style="padding: 8px 18px">
+          <div id="recent-expenses"></div>
+        </div>
       </div>
 
     </section>
@@ -174,7 +163,7 @@
     <!-- Add Expense -->
     <section id="screen-add" class="screen">
 
-      <div class="section-title" style="margin-bottom:14px">Nova despesa</div>
+      <div class="screen-title">Nova despesa</div>
 
       <!-- Receipt upload -->
       <label class="receipt-upload" id="receipt-upload-label">
@@ -238,9 +227,9 @@
 
     </section>
 
-    <!-- History -->
+    <!-- History / Relatório -->
     <section id="screen-history" class="screen">
-      <div class="section-title" style="margin-bottom:12px">Histórico</div>
+      <div class="screen-title">Relatório</div>
       <div class="filter-bar" id="filter-bar"></div>
       <div id="history-list"></div>
     </section>
@@ -250,24 +239,31 @@
   <!-- ── Bottom Tab Bar ── -->
   <nav class="tab-bar">
     <button class="tab-btn active" id="tab-dashboard">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
-        <rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
-      </svg>
-      Início
+      <img src="assets/logo-mark.svg" alt="" />
+      Home
     </button>
-    <button class="tab-btn tab-add" id="tab-add">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-        <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+    <button class="tab-btn" id="tab-add">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 20h9"/>
+        <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/>
+        <line x1="15" y1="6" x2="18" y2="9"/>
       </svg>
+      Adicionar
     </button>
     <button class="tab-btn" id="tab-history">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/>
-        <line x1="8" y1="18" x2="21" y2="18"/>
-        <line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+        <polyline points="14 2 14 8 20 8"/>
+        <line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/>
       </svg>
-      Histórico
+      Relatório
+    </button>
+    <button class="tab-btn" id="tab-settings">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="3"/>
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+      </svg>
+      Configuração
     </button>
   </nav>
 
@@ -310,17 +306,6 @@
     <h2 class="modal-title">Definições</h2>
 
     <div class="settings-section">
-      <div class="settings-section-title">Aparência</div>
-      <div class="settings-row">
-        <span class="settings-row-label">☀️ Tema claro</span>
-        <label class="toggle-switch">
-          <input type="checkbox" id="set-theme-light" onchange="toggleTheme(this.checked)" />
-          <span class="toggle-slider"></span>
-        </label>
-      </div>
-    </div>
-
-    <div class="settings-section">
       <div class="settings-section-title">Nosso casal 💛💗</div>
       <div id="partner-list"></div>
       <p class="settings-note">Toca na fotinho para mudar a foto 📸</p>
@@ -330,7 +315,10 @@
       <div class="settings-section-title">Conta do casal</div>
       <div id="sheet-status" class="sheet-status"></div>
       <div class="btn-row" style="margin-top:10px">
+        <button class="btn btn-secondary btn-sm" id="btn-sync">🔄 Sincronizar</button>
         <button class="btn btn-secondary btn-sm" id="btn-open-sheet">🔗 Copiar código</button>
+      </div>
+      <div class="btn-row" style="margin-top:10px">
         <button class="btn btn-secondary btn-sm" id="btn-export-xlsx">⬇️ Baixar Excel</button>
       </div>
     </div>
@@ -381,11 +369,5 @@
 <script src="js/auth.js" defer></script>
 <script src="js/db.js" defer></script>
 <script src="js/app.js" defer></script>
-<script>
-  // Set header month
-  const months = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
-  const now = new Date();
-  document.getElementById('header-month').textContent = `${months[now.getMonth()]} ${now.getFullYear()}`;
-</script>
 </body>
 </html>
