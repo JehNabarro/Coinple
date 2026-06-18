@@ -262,11 +262,11 @@ body.in-setup #setup-screen { display: block; }
 
 /* Screens com cabeçalho próprio (sem barra de topo global) */
 #screen-add, #screen-history {
-  padding: calc(20px + var(--sat)) 16px calc(var(--tab-h) + 16px);
+  padding: calc(20px + var(--sat)) 16px 28px;
 }
 
 #screen-dashboard {
-  padding: 0 0 calc(var(--tab-h) + 16px);
+  padding: 0 0 28px;
 }
 
 /* ── Dashboard hero (paisagem + logo) ── */
@@ -473,14 +473,9 @@ body.in-setup #setup-screen { display: block; }
   box-shadow: 0 -4px 20px rgba(108, 42, 58, 0.10);
   display: flex;
   align-items: flex-start;
-  padding: 10px 6px var(--sab);
+  padding: 10px 4px var(--sab);
   flex-shrink: 0;
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  max-width: 480px;
-  margin: 0 auto;
+  position: relative;
   z-index: 10;
 }
 
@@ -507,6 +502,24 @@ body.in-setup #setup-screen { display: block; }
 
 .tab-btn.active { color: var(--rose); opacity: 1; }
 .tab-btn.active svg { stroke: var(--rose); }
+
+/* Botão central "Adicionar" em destaque (círculo elevado) */
+.tab-btn.tab-add { opacity: 1; color: var(--rose); }
+.tab-add-circle {
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  background: var(--grad);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: -24px;
+  margin-bottom: 3px;
+  box-shadow: 0 6px 16px rgba(200, 114, 138, 0.45);
+  border: 4px solid var(--tab-bg);
+}
+.tab-btn.tab-add .tab-add-circle svg { width: 26px; height: 26px; stroke: #fff; }
+.tab-btn.tab-add:active .tab-add-circle { transform: scale(0.94); }
 
 /* ── Recent expenses / history rows ── */
 .expense-item {
@@ -958,6 +971,5 @@ input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; }
 
 /* ── Safe area for iOS ── */
 @supports (padding-bottom: env(safe-area-inset-bottom)) {
-  .tab-bar { padding-bottom: env(safe-area-inset-bottom); height: calc(var(--tab-h) + env(safe-area-inset-bottom)); }
   .toast { bottom: calc(var(--tab-h) + env(safe-area-inset-bottom) + 16px); }
 }

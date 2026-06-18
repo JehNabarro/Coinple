@@ -470,11 +470,6 @@ function resetAddForm() {
   document.getElementById('expense-amount').value   = '';
   document.getElementById('expense-desc').value     = '';
   document.getElementById('expense-date').value     = todayISO();
-  document.getElementById('receipt-preview').style.display = 'none';
-  document.getElementById('upload-placeholder').style.display = 'block';
-  document.getElementById('ai-analyzing').classList.remove('visible');
-  document.getElementById('ai-suggestion').classList.remove('visible');
-  document.getElementById('receipt-file').value = '';
 
   const btn = document.getElementById('btn-submit-expense');
   btn.textContent = 'Guardar Despesa';
@@ -833,9 +828,6 @@ async function handlePartnerPhotoChange(event) {
 
 /* ── Settings Modal ── */
 function openSettings() {
-  document.getElementById('set-apikey').value = state.settings.apiKey;
-  const themeToggle = document.getElementById('set-theme-light');
-  if (themeToggle) themeToggle.checked = state.theme === 'light';
   renderPartnerList();
   renderSheetStatus();
   openModal('modal-settings');
@@ -944,8 +936,6 @@ function updateCatBudget(id, value) {
 }
 
 function saveSettings() {
-  state.settings.apiKey = document.getElementById('set-apikey').value.trim();
-
   document.querySelectorAll('.partner-name-input').forEach(input => {
     const p = getPartner(input.dataset.email);
     if (p && input.value.trim()) p.name = input.value.trim();
@@ -1051,16 +1041,15 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
   document.getElementById('tab-history').addEventListener('click',   () => showScreen('history'));
+  document.getElementById('tab-budgets').addEventListener('click', openBudgetModal);
   document.getElementById('tab-settings').addEventListener('click', openSettings);
 
   document.getElementById('btn-sync').addEventListener('click', () => syncFromSupabase());
   document.getElementById('btn-logout').addEventListener('click', handleLogout);
 
-  document.getElementById('receipt-file').addEventListener('change', handleReceiptUpload);
   document.getElementById('partner-photo-file').addEventListener('change', handlePartnerPhotoChange);
 
   document.getElementById('btn-open-sheet').addEventListener('click', handleOpenSheet);
-  document.getElementById('btn-export-xlsx').addEventListener('click', handleExportXlsx);
 
   document.querySelectorAll('[data-close-modal]').forEach(el => {
     el.addEventListener('click', () => closeModal(el.dataset.closeModal));
