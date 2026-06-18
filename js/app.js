@@ -60,6 +60,18 @@ function formatDate(dateStr) {
   return `${d}/${m}/${y}`;
 }
 
+function formatTime(ts) {
+  if (!ts) return '';
+  const d = new Date(ts);
+  if (isNaN(d.getTime())) return '';
+  return d.toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' });
+}
+
+const MONTH_NAMES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+function monthName(monthKey) {
+  return MONTH_NAMES[parseInt(monthKey.split('-')[1], 10) - 1] || '';
+}
+
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
 }
@@ -362,7 +374,7 @@ function renderBudgetOverview(mk) {
   el.innerHTML = `
     <div class="finance-total">
       <div class="finance-total-amt ${remaining < 0 ? 'neg' : ''}">${formatCurrency(remaining)}</div>
-      <div class="finance-total-label">total disponível</div>
+      <div class="finance-total-label">total disponível em ${monthName(mk)}</div>
     </div>
     <div class="finance-progress">
       <div class="finance-progress-fill" style="width:${pct}%"></div>
@@ -456,7 +468,7 @@ function renderRecentExpenses(mk) {
           <div class="expense-meta">
             ${avatarHtml(e.payerEmail, 'avatar-xs')}
             <span class="expense-person">${payerLabel(e)}</span>
-            <span>${formatDate(e.date)}</span>
+            <span>${formatDate(e.date)}${formatTime(e.createdAt) ? ' · ' + formatTime(e.createdAt) : ''}</span>
           </div>
         </div>
         <div class="expense-amount">${formatCurrency(e.amount)}</div>
@@ -597,16 +609,7 @@ function submitExpense() {
   const form = readExpenseForm();
   if (!form) return;
 
-  if (state.totalBudget > 0) {
-    const mk = form.date.slice(0, 7);
-    const spent = totalSpentThisMonth(mk);
-    if (spent + form.amount > state.totalBudget) {
-      const avail = Math.max(0, state.totalBudget - spent);
-      showToast(`Orçamento esgotado! Disponível: ${formatCurrency(avail)}`);
-      return;
-    }
-  }
-
+  // O orçamento pode ficar negativo — não bloqueamos despesas que excedem o total.
   const payer = getPartner(addFormState.payerEmail);
   const expense = {
     id:          generateId(),
@@ -677,7 +680,7 @@ function renderHistory() {
             </div>
             <div class="history-right">
               <div class="history-amount">${formatCurrency(e.amount)}</div>
-              <div class="history-date">${formatDate(e.date)}</div>
+              <div class="history-date">${formatDate(e.date)}${formatTime(e.createdAt) ? ' · ' + formatTime(e.createdAt) : ''}</div>
             </div>
           </div>`;
       }).join('')}
@@ -758,15 +761,7 @@ function editExpense(id) {
   btn.onclick = () => {
     const form = readExpenseForm();
     if (!form) return;
-    if (state.totalBudget > 0) {
-      const mk = form.date.slice(0, 7);
-      const spentWithoutThis = totalSpentThisMonth(mk) - (expense.amount || 0);
-      if (spentWithoutThis + form.amount > state.totalBudget) {
-        const avail = Math.max(0, state.totalBudget - spentWithoutThis);
-        showToast(`Orçamento esgotado! Disponível: ${formatCurrency(avail)}`);
-        return;
-      }
-    }
+    // O orçamento pode ficar negativo — não bloqueamos despesas que excedem o total.
     const payer = getPartner(addFormState.payerEmail);
     expense.amount      = form.amount;
     expense.description = form.desc || getCategory(addFormState.selectedCategory).name;

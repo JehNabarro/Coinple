@@ -249,7 +249,7 @@ body.ready #loading-screen { display: none; }
 }
 
 .avatar.tone-gold { border: 2.5px solid #fff; background: #D8A24B; }
-.avatar.tone-pink { border: 2.5px solid #fff; background: var(--rose); }
+.avatar.tone-pink { border: 2.5px solid #fad9cc; background: var(--rose); }
 
 .avatar-xs { width: 18px; height: 18px; font-size: 9px;  border-width: 1.5px !important; }
 .avatar-sm { width: 28px; height: 28px; font-size: 12px; }
@@ -261,10 +261,15 @@ body.ready #loading-screen { display: none; }
 #app {
   display: flex;
   flex-direction: column;
-  height: 100dvh;
+  /* Ancorado às bordas reais do viewport — fiável em PWA standalone (iOS),
+     sem depender de unidades vh/dvh que falham na home screen. */
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
   max-width: 480px;
   margin: 0 auto;
-  position: relative;
   overflow: hidden;
   background: linear-gradient(180deg, var(--cream) 0%, var(--cream-2) 100%);
 }
@@ -298,7 +303,7 @@ body.ready #loading-screen { display: none; }
 /* ── Dashboard hero (paisagem + logo) ── */
 .dash-hero {
   position: relative;
-  height: clamp(210px, 32vh, 320px);
+  height: 320px;
   background-image: url('../assets/landscape-header.png');
   background-repeat: no-repeat;
   background-position: center;
