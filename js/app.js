@@ -165,6 +165,7 @@ function toggleTheme(isLight) {
 
 /* ── Views: login / setup / app ── */
 function showView(view) {
+  document.body.classList.add('ready'); // esconde o ecrã de loading
   document.body.classList.toggle('logged-out', view === 'login');
   document.body.classList.toggle('in-setup', view === 'setup');
   if (view === 'setup') renderSetup();
@@ -400,14 +401,26 @@ function renderCategoryCards(mk) {
     const spent  = spentByCategory(cat.id, mk);
     const budget = cat.budget || 0;
     const avail  = budget - spent;
+    const pct    = budget ? Math.min((spent / budget) * 100, 100) : 0;
     const tint   = `color-mix(in srgb, ${cat.color} 16%, #fff)`;
-    return `
-      <div class="cat-card ${isBig ? 'big' : 'small'}" style="background:${tint}"
+    const bar    = `<div class="cat-progress"><div class="cat-progress-fill" style="width:${pct}%"></div></div>`;
+    if (isBig) {
+      return `
+      <div class="cat-card big" style="background:${tint}"
            onclick="filterHistoryByCat('${cat.id}')" title="${cat.name}">
         <div class="cat-icon-wrap">${cat.emoji}</div>
         <div class="cat-avail ${avail < 0 ? 'neg' : ''}">${formatCurrency(avail)}</div>
-        ${isBig ? `<div class="cat-avail-label">disponível</div>
-        <div class="cat-budget-line">de ${formatCurrency(budget)}</div>` : ''}
+        <div class="cat-avail-label">disponível</div>
+        ${bar}
+        <div class="cat-budget-line">de ${formatCurrency(budget)}</div>
+      </div>`;
+    }
+    return `
+      <div class="cat-card small" style="background:${tint}"
+           onclick="filterHistoryByCat('${cat.id}')" title="${cat.name}">
+        <div class="cat-icon-wrap">${cat.emoji}</div>
+        ${bar}
+        <div class="cat-avail ${avail < 0 ? 'neg' : ''}">${formatCurrency(avail)}</div>
       </div>`;
   };
 
@@ -1015,6 +1028,9 @@ function closeModal(id) {
 document.addEventListener('DOMContentLoaded', () => {
   loadState();
   applyTheme(state.theme || 'dark');
+
+  // Rede de segurança: nunca deixar o loading preso
+  setTimeout(() => document.body.classList.add('ready'), 5000);
 
   // Login / setup
   document.getElementById('btn-google-login').addEventListener('click', handleGoogleLogin);
