@@ -54,7 +54,27 @@ html, body {
   color-scheme: light;
 }
 
-body { overflow: hidden; }
+/* Tranca a página ao viewport (evita scroll/resize do body em PWA standalone iOS,
+   garantindo que a barra inferior fica mesmo no fundo) */
+html, body {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+/* Faixa rosa por trás da hora/bateria (safe-area do topo no PWA standalone) */
+#statusbar-bg {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: env(safe-area-inset-top, 0px);
+  background: #f7a8a3;
+  z-index: 150;
+  pointer-events: none;
+}
 
 /* ── View switching (login / setup / app) ── */
 #login-screen, #setup-screen { display: none; }
