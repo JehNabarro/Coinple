@@ -42,7 +42,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&display=swap" />
-  <link rel="stylesheet" href="css/style.css?v=6" />
+  <link rel="stylesheet" href="css/style.css?v=7" />
 </head>
 <body class="logged-out">
 
@@ -232,6 +232,61 @@
       <div id="events-list-content"></div>
     </section>
 
+    <!-- Formulário de Evento (ecrã completo) -->
+    <section id="screen-event-form" class="screen">
+      <div class="event-form-header">
+        <button class="btn-back" onclick="showScreen('events')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+               stroke-linecap="round" stroke-linejoin="round" width="18" height="18">
+            <polyline points="15 18 9 12 15 6"/>
+          </svg>
+          Eventos
+        </button>
+        <span class="screen-title" id="event-form-screen-title" style="margin-bottom:0">Novo Evento</span>
+        <div style="width:72px"></div>
+      </div>
+
+      <div style="height:14px"></div>
+
+      <div class="form-group">
+        <label class="form-label">Nome do evento</label>
+        <input class="form-input" type="text" id="event-name" placeholder="Ex: Viagem ao Porto" />
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Emoji</label>
+        <div class="emoji-picker" id="event-emoji-picker"></div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Orçamento total (€)</label>
+        <input class="form-input" type="number" id="event-budget" placeholder="0"
+               min="0" step="10" inputmode="decimal" oninput="onEventBudgetInput(this.value)" />
+      </div>
+
+      <div style="display:flex;gap:10px">
+        <div class="form-group" style="flex:1">
+          <label class="form-label">Início</label>
+          <input class="form-input" type="date" id="event-start" />
+        </div>
+        <div class="form-group" style="flex:1">
+          <label class="form-label">Fim</label>
+          <input class="form-input" type="date" id="event-end" />
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Distribuir por categorias</label>
+        <div id="event-budget-alloc-status"></div>
+        <div id="event-categories-list"></div>
+        <button class="btn btn-secondary btn-sm" onclick="addEventCategory()"
+                style="margin-top:8px;width:100%">+ Adicionar categoria</button>
+      </div>
+
+      <button class="btn btn-primary" id="btn-save-event" onclick="saveEvent()">Criar Evento</button>
+      <div style="height:24px"></div>
+    </section>
+
     <!-- Configuração -->
     <section id="screen-settings" class="screen">
       <div class="screen-title">Definições</div>
@@ -331,51 +386,6 @@
   </div>
 </div>
 
-<!-- Event Form Modal -->
-<div class="modal-backdrop" id="modal-event-form">
-  <div class="modal">
-    <div class="modal-handle"></div>
-    <h2 class="modal-title" id="event-form-title">Novo Evento</h2>
-
-    <div class="form-group">
-      <label class="form-label">Nome do evento</label>
-      <input class="form-input" type="text" id="event-name" placeholder="Ex: Viagem ao Porto" />
-    </div>
-
-    <div style="display:flex;gap:10px">
-      <div class="form-group" style="width:72px;flex-shrink:0">
-        <label class="form-label">Emoji</label>
-        <input class="form-input" type="text" id="event-emoji" value="🎉" maxlength="2" style="text-align:center;font-size:22px;padding:0 4px" />
-      </div>
-      <div class="form-group" style="flex:1">
-        <label class="form-label">Orçamento total (€)</label>
-        <input class="form-input" type="number" id="event-budget" placeholder="0" min="0" step="10" inputmode="decimal" />
-      </div>
-    </div>
-
-    <div style="display:flex;gap:10px">
-      <div class="form-group" style="flex:1">
-        <label class="form-label">Início</label>
-        <input class="form-input" type="date" id="event-start" />
-      </div>
-      <div class="form-group" style="flex:1">
-        <label class="form-label">Fim</label>
-        <input class="form-input" type="date" id="event-end" />
-      </div>
-    </div>
-
-    <div class="form-group">
-      <label class="form-label">Categorias</label>
-      <div id="event-categories-list"></div>
-      <button class="btn btn-secondary btn-sm" onclick="addEventCategory()" style="margin-top:8px;width:100%">+ Adicionar categoria</button>
-    </div>
-
-    <button class="btn btn-primary" id="btn-save-event" onclick="saveEvent()">Criar Evento</button>
-    <div style="height:10px"></div>
-    <button class="btn btn-secondary" data-close-modal="modal-event-form">Cancelar</button>
-  </div>
-</div>
-
 <!-- Event Detail Modal -->
 <div class="modal-backdrop" id="modal-event-detail">
   <div class="modal">
@@ -406,9 +416,9 @@
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js" defer></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
 <script src="js/config.js?v=5"></script>
-<script src="js/api.js?v=6" defer></script>
-<script src="js/auth.js?v=6" defer></script>
-<script src="js/db.js?v=6" defer></script>
-<script src="js/app.js?v=6" defer></script>
+<script src="js/api.js?v=7" defer></script>
+<script src="js/auth.js?v=7" defer></script>
+<script src="js/db.js?v=7" defer></script>
+<script src="js/app.js?v=7" defer></script>
 </body>
 </html>

@@ -29,10 +29,25 @@ CREATE TABLE IF NOT EXISTS budgets (
   PRIMARY KEY (couple_id, category)
 );
 
--- 4. Despesas
+-- 4. Eventos do casal
+CREATE TABLE IF NOT EXISTS couple_events (
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  couple_id    UUID          NOT NULL REFERENCES couples(id) ON DELETE CASCADE,
+  name         TEXT          NOT NULL,
+  emoji        TEXT          NOT NULL DEFAULT '🎉',
+  total_budget DECIMAL(10,2) NOT NULL DEFAULT 0,
+  start_date   DATE          NOT NULL,
+  end_date     DATE          NOT NULL,
+  categories   JSONB         NOT NULL DEFAULT '[]',
+  created_at   TIMESTAMPTZ   NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_couple_events_couple ON couple_events(couple_id);
+
+-- 5. Despesas
 CREATE TABLE IF NOT EXISTS expenses (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   couple_id   UUID          NOT NULL REFERENCES couples(id) ON DELETE CASCADE,
+  event_id    UUID          REFERENCES couple_events(id) ON DELETE SET NULL,
   amount      DECIMAL(10,2) NOT NULL,
   description TEXT,
   category    TEXT          NOT NULL,
@@ -45,10 +60,11 @@ CREATE TABLE IF NOT EXISTS expenses (
 -- ============================================================
 -- Row Level Security
 -- ============================================================
-ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
-ALTER TABLE couples  ENABLE ROW LEVEL SECURITY;
-ALTER TABLE budgets  ENABLE ROW LEVEL SECURITY;
-ALTER TABLE expenses ENABLE ROW LEVEL SECURITY;
+ALTER TABLE profiles       ENABLE ROW LEVEL SECURITY;
+ALTER TABLE couples        ENABLE ROW LEVEL SECURITY;
+ALTER TABLE budgets        ENABLE ROW LEVEL SECURITY;
+ALTER TABLE couple_events  ENABLE ROW LEVEL SECURITY;
+ALTER TABLE expenses       ENABLE ROW LEVEL SECURITY;
 
 -- Helper: devolve o couple_id do utilizador autenticado
 CREATE OR REPLACE FUNCTION my_couple_id()
@@ -57,18 +73,27 @@ RETURNS UUID LANGUAGE SQL STABLE SECURITY DEFINER AS $$
 $$;
 
 -- Perfis: cada utilizador vê/edita só o seu
+DROP POLICY IF EXISTS "profiles_own"   ON profiles;
 CREATE POLICY "profiles_own" ON profiles
   FOR ALL USING (id = auth.uid());
 
 -- Casais: só membros do casal
+DROP POLICY IF EXISTS "couples_member" ON couples;
 CREATE POLICY "couples_member" ON couples
   FOR ALL USING (id = my_couple_id());
 
 -- Orçamentos: só o casal
+DROP POLICY IF EXISTS "budgets_couple" ON budgets;
 CREATE POLICY "budgets_couple" ON budgets
   FOR ALL USING (couple_id = my_couple_id());
 
+-- Eventos: só o casal
+DROP POLICY IF EXISTS "events_couple" ON couple_events;
+CREATE POLICY "events_couple" ON couple_events
+  FOR ALL USING (couple_id = my_couple_id());
+
 -- Despesas: só o casal
+DROP POLICY IF EXISTS "expenses_couple" ON expenses;
 CREATE POLICY "expenses_couple" ON expenses
   FOR ALL USING (couple_id = my_couple_id());
 

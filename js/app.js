@@ -235,15 +235,18 @@ function showScreen(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   document.getElementById(`screen-${id}`)?.classList.add('active');
-  document.getElementById(`tab-${id}`)?.classList.add('active');
+  // event-form keeps the events tab active
+  const tabId = id === 'event-form' ? 'events' : id;
+  document.getElementById(`tab-${tabId}`)?.classList.add('active');
   activeScreen = id;
 
-  if (id === 'dashboard') renderDashboard();
-  if (id === 'add')       resetAddForm();
-  if (id === 'history')   renderHistory();
-  if (id === 'budgets')   renderCatBudgetList();
-  if (id === 'events')    renderEventsScreen();
-  if (id === 'settings')  { renderPartnerList(); renderSheetStatus(); }
+  if (id === 'dashboard')  renderDashboard();
+  if (id === 'add')        resetAddForm();
+  if (id === 'history')    renderHistory();
+  if (id === 'budgets')    renderCatBudgetList();
+  if (id === 'events')     renderEventsScreen();
+  if (id === 'event-form') renderEventFormScreen();
+  if (id === 'settings')   { renderPartnerList(); renderSheetStatus(); }
 }
 
 /* ── Toast ── */
@@ -374,9 +377,10 @@ async function syncFromSupabase({ quiet = false } = {}) {
   syncing = true;
   document.getElementById('btn-sync')?.classList.add('spinning');
   try {
-    const { expenses, partners, budgets, totalBudget } = await loadCoupleData();
+    const { expenses, partners, budgets, totalBudget, events } = await loadCoupleData();
     state.expenses = expenses;
     state.partners = partners;
+    state.events   = events;
     if (totalBudget > 0) state.totalBudget = totalBudget;
     state.categories.forEach(c => {
       if (budgets[c.id] !== undefined) c.budget = budgets[c.id];
@@ -982,6 +986,13 @@ async function handlePartnerPhotoChange(event) {
 }
 
 /* ── Events ── */
+const EVENT_EMOJIS = [
+  '🎉','✈️','🏖️','🏕️','🎂','🏠','🌍','🎪','🎭','🏆',
+  '🍾','💒','🎓','🎵','🎸','🎮','📚','🌸','🎯','🏄',
+  '🎿','🚴','🏋️','🌮','🍕','🍣','🚀','⭐','💎','🌴',
+  '🏔️','🎨','🦁','🎃','🎄',
+];
+
 function renderEventsScreen() {
   const events = state.events || [];
   const today = todayISO();
@@ -1025,26 +1036,46 @@ function renderEventsScreen() {
   container.innerHTML = html;
 }
 
-/* Event form */
-let eventFormState = { editingId: null, categories: [] };
+/* ── Event form screen ── */
+let eventFormState = { editingId: null, selectedEmoji: '🎉', totalBudget: 0, categories: [] };
 
 function openEventForm(eventId = null) {
   const ev = eventId ? (state.events || []).find(e => e.id === eventId) : null;
-  eventFormState.editingId = eventId;
-
-  document.getElementById('event-form-title').textContent = ev ? 'Editar Evento' : 'Novo Evento';
-  document.getElementById('event-name').value   = ev?.name        || '';
-  document.getElementById('event-emoji').value  = ev?.emoji       || '🎉';
-  document.getElementById('event-budget').value = ev?.totalBudget || '';
-  document.getElementById('event-start').value  = ev?.startDate   || todayISO();
-  document.getElementById('event-end').value    = ev?.endDate     || '';
-  document.getElementById('btn-save-event').textContent = ev ? 'Guardar' : 'Criar Evento';
-
-  eventFormState.categories = JSON.parse(JSON.stringify(
+  eventFormState.editingId    = eventId;
+  eventFormState.selectedEmoji = ev?.emoji || '🎉';
+  eventFormState.totalBudget   = ev?.totalBudget || 0;
+  eventFormState.categories    = JSON.parse(JSON.stringify(
     ev ? (ev.categories || []) : DEFAULT_CATEGORIES
   ));
+  showScreen('event-form');
+}
+
+function renderEventFormScreen() {
+  const ev = eventFormState.editingId ? (state.events || []).find(e => e.id === eventFormState.editingId) : null;
+
+  document.getElementById('event-form-screen-title').textContent = ev ? 'Editar Evento' : 'Novo Evento';
+  document.getElementById('event-name').value   = ev?.name      || '';
+  document.getElementById('event-budget').value = eventFormState.totalBudget || '';
+  document.getElementById('event-start').value  = ev?.startDate || todayISO();
+  document.getElementById('event-end').value    = ev?.endDate   || '';
+  document.getElementById('btn-save-event').textContent = ev ? 'Guardar' : 'Criar Evento';
+
+  renderEmojiPicker();
   renderEventCategoryEditor();
-  openModal('modal-event-form');
+  renderEventBudgetAllocStatus();
+}
+
+function renderEmojiPicker() {
+  const container = document.getElementById('event-emoji-picker');
+  if (!container) return;
+  container.innerHTML = EVENT_EMOJIS.map(emoji => `
+    <button class="emoji-option ${eventFormState.selectedEmoji === emoji ? 'selected' : ''}"
+            onclick="selectEventEmoji('${emoji}')" type="button">${emoji}</button>`).join('');
+}
+
+function selectEventEmoji(emoji) {
+  eventFormState.selectedEmoji = emoji;
+  renderEmojiPicker();
 }
 
 function renderEventCategoryEditor() {
@@ -1055,8 +1086,11 @@ function renderEventCategoryEditor() {
       <input class="event-cat-emoji-input" type="text" value="${cat.emoji || ''}" maxlength="2"
              oninput="updateEventCatField(${i},'emoji',this.value)" />
       <input class="event-cat-name-input" type="text" value="${cat.name || ''}"
-             placeholder="Nome da categoria"
+             placeholder="Nome"
              oninput="updateEventCatField(${i},'name',this.value)" />
+      <input class="event-cat-budget-input" type="number" value="${cat.budget || ''}"
+             placeholder="€" min="0" step="10" inputmode="decimal"
+             oninput="updateEventCatBudget(${i},this.value)" />
       <button class="event-cat-remove" onclick="removeEventCategory(${i})">✕</button>
     </div>`).join('');
 }
@@ -1065,9 +1099,51 @@ function updateEventCatField(idx, field, value) {
   if (eventFormState.categories[idx]) eventFormState.categories[idx][field] = value;
 }
 
+function updateEventCatBudget(idx, value) {
+  if (eventFormState.categories[idx]) {
+    eventFormState.categories[idx].budget = parseFloat(value) || 0;
+    renderEventBudgetAllocStatus();
+  }
+}
+
+function onEventBudgetInput(value) {
+  eventFormState.totalBudget = parseFloat(value) || 0;
+  renderEventBudgetAllocStatus();
+}
+
+function renderEventBudgetAllocStatus() {
+  const el = document.getElementById('event-budget-alloc-status');
+  if (!el) return;
+  const total = eventFormState.totalBudget || 0;
+  if (!total) { el.innerHTML = ''; return; }
+
+  const allocated = eventFormState.categories.reduce((s, c) => s + (c.budget || 0), 0);
+  const remaining = total - allocated;
+  const pct    = Math.min((allocated / total) * 100, 100);
+  const barCls = remaining < 0 ? 'progress-red' : remaining / total < 0.25 ? 'progress-pink' : 'progress-gold';
+  const valCls = remaining < 0 ? 'over' : remaining / total < 0.1 ? 'warn' : 'ok';
+
+  el.innerHTML = `
+    <div class="budget-alloc-box" style="margin-bottom:12px">
+      <div class="budget-alloc-top">
+        <span class="budget-alloc-label">Distribuído</span>
+        <span class="budget-alloc-value ${valCls}">${formatCurrency(allocated)} de ${formatCurrency(total)}</span>
+      </div>
+      <div class="progress-bar" style="margin-bottom:6px">
+        <div class="progress-fill ${barCls}" style="width:${pct}%"></div>
+      </div>
+      <div style="font-size:12px;color:var(--text-muted)">
+        ${remaining >= 0
+          ? `Por distribuir: <b style="color:var(--gold-dark)">${formatCurrency(remaining)}</b>`
+          : `<span style="color:var(--danger)">⚠️ Excede em ${formatCurrency(-remaining)}</span>`}
+      </div>
+    </div>`;
+}
+
 function removeEventCategory(idx) {
   eventFormState.categories.splice(idx, 1);
   renderEventCategoryEditor();
+  renderEventBudgetAllocStatus();
 }
 
 function addEventCategory() {
@@ -1076,11 +1152,11 @@ function addEventCategory() {
 }
 
 function saveEvent() {
-  const name       = document.getElementById('event-name').value.trim();
-  const emoji      = document.getElementById('event-emoji').value.trim() || '🎉';
+  const name        = document.getElementById('event-name').value.trim();
+  const emoji       = eventFormState.selectedEmoji || '🎉';
   const totalBudget = parseFloat(document.getElementById('event-budget').value) || 0;
-  const startDate  = document.getElementById('event-start').value;
-  const endDate    = document.getElementById('event-end').value;
+  const startDate   = document.getElementById('event-start').value;
+  const endDate     = document.getElementById('event-end').value;
 
   if (!name)                  { showToast('Dá um nome ao evento'); return; }
   if (!startDate || !endDate) { showToast('Seleciona as datas do evento'); return; }
@@ -1089,18 +1165,28 @@ function saveEvent() {
   const validCats = eventFormState.categories.filter(c => (c.name || '').trim());
   if (!state.events) state.events = [];
 
+  let savedId;
   if (eventFormState.editingId) {
     const idx = state.events.findIndex(e => e.id === eventFormState.editingId);
-    if (idx >= 0) state.events[idx] = { ...state.events[idx], name, emoji, totalBudget, startDate, endDate, categories: validCats };
+    if (idx >= 0) {
+      state.events[idx] = { ...state.events[idx], name, emoji, totalBudget, startDate, endDate, categories: validCats };
+      savedId = state.events[idx].id;
+    }
     showToast('Evento atualizado! 🎉');
   } else {
-    state.events.push({ id: generateId(), name, emoji, totalBudget, startDate, endDate, categories: validCats, createdAt: Date.now() });
+    savedId = generateId();
+    state.events.push({ id: savedId, name, emoji, totalBudget, startDate, endDate, categories: validCats, createdAt: Date.now() });
     showToast('Evento criado! 🎉');
   }
 
   saveState();
-  closeModal('modal-event-form');
-  renderEventsScreen();
+
+  if (!state.demoMode && state.coupleId && savedId) {
+    const ev = state.events.find(e => e.id === savedId);
+    if (ev) saveEventToDb(state.coupleId, ev).catch(err => showToast(`Aviso: não sincronizou (${err.message})`));
+  }
+
+  showScreen('events');
   if (activeScreen === 'dashboard') renderDashboard();
 }
 
@@ -1108,9 +1194,14 @@ function deleteEvent(eventId) {
   if (!confirm('Eliminar este evento?')) return;
   state.events = (state.events || []).filter(e => e.id !== eventId);
   saveState();
+
+  if (!state.demoMode && state.coupleId) {
+    deleteEventFromDb(eventId).catch(err => showToast(`Aviso: não sincronizou (${err.message})`));
+  }
+
   closeModal('modal-event-detail');
   renderEventsScreen();
-  if (activeScreen === 'dashboard') renderDashboard();
+  renderDashboard();
   showToast('Evento eliminado');
 }
 

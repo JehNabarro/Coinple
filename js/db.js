@@ -42,14 +42,16 @@ async function joinCouple(inviteCode) {
 /* ── Carregar todos os dados do casal ── */
 async function loadCoupleData() {
   const profile = await getCurrentProfile();
-  if (!profile?.couple_id) return { expenses: [], partners: [], budgets: {}, totalBudget: 0 };
+  if (!profile?.couple_id) return { expenses: [], partners: [], budgets: {}, totalBudget: 0, events: [] };
 
   const coupleId = profile.couple_id;
 
-  const [{ data: partnerRows }, { data: expenseRows }, { data: budgetRows }] = await Promise.all([
+  const [{ data: partnerRows }, { data: expenseRows }, { data: budgetRows }, eventResult] = await Promise.all([
     _supabase.from('profiles').select('id, name, email, photo_url').eq('couple_id', coupleId),
     _supabase.from('expenses').select('*').eq('couple_id', coupleId).order('date', { ascending: false }),
     _supabase.from('budgets').select('*').eq('couple_id', coupleId),
+    _supabase.from('couple_events').select('*').eq('couple_id', coupleId).order('start_date', { ascending: true })
+      .then(r => r).catch(() => ({ data: [] })),
   ]);
 
   const partners = (partnerRows || []).map(p => ({
@@ -70,6 +72,7 @@ async function loadCoupleData() {
     payerName:   r.payer_name || '',
     date:        r.date,
     createdAt:   new Date(r.created_at).getTime(),
+    ...(r.event_id ? { eventId: r.event_id } : {}),
   }));
 
   const budgets = {};
@@ -77,7 +80,18 @@ async function loadCoupleData() {
 
   const totalBudget = parseFloat(profile.couples?.total_budget || 0);
 
-  return { expenses, partners, budgets, totalBudget };
+  const events = ((eventResult?.data) || []).map(r => ({
+    id:          r.id,
+    name:        r.name,
+    emoji:       r.emoji || '🎉',
+    totalBudget: parseFloat(r.total_budget) || 0,
+    startDate:   r.start_date,
+    endDate:     r.end_date,
+    categories:  Array.isArray(r.categories) ? r.categories : (typeof r.categories === 'string' ? JSON.parse(r.categories) : []),
+    createdAt:   new Date(r.created_at).getTime(),
+  }));
+
+  return { expenses, partners, budgets, totalBudget, events };
 }
 
 /* ── Despesas ── */
@@ -85,6 +99,7 @@ async function appendExpenseToDb(coupleId, expense, payerId) {
   const { error } = await _supabase.from('expenses').insert({
     id:          expense.id,
     couple_id:   coupleId,
+    event_id:    expense.eventId || null,
     amount:      expense.amount,
     description: expense.description,
     category:    expense.category,
@@ -97,6 +112,7 @@ async function appendExpenseToDb(coupleId, expense, payerId) {
 
 async function updateExpenseInDb(expense, payerId) {
   const { error } = await _supabase.from('expenses').update({
+    event_id:    expense.eventId || null,
     amount:      expense.amount,
     description: expense.description,
     category:    expense.category,
@@ -152,6 +168,26 @@ function subscribeToCouple(coupleId, onChange) {
       filter: `couple_id=eq.${coupleId}`,
     }, onChange)
     .subscribe();
+}
+
+/* ── Eventos ── */
+async function saveEventToDb(coupleId, event) {
+  const { error } = await _supabase.from('couple_events').upsert({
+    id:           event.id,
+    couple_id:    coupleId,
+    name:         event.name,
+    emoji:        event.emoji || '🎉',
+    total_budget: event.totalBudget || 0,
+    start_date:   event.startDate,
+    end_date:     event.endDate,
+    categories:   event.categories || [],
+  });
+  if (error) throw error;
+}
+
+async function deleteEventFromDb(eventId) {
+  const { error } = await _supabase.from('couple_events').delete().eq('id', eventId);
+  if (error) throw error;
 }
 
 /* ── Exportar .xlsx (download local) ── */

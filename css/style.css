@@ -311,7 +311,8 @@ body.ready #loading-screen { display: none; }
 .screen.active { display: block; }
 
 /* Screens com cabeçalho próprio (sem barra de topo global) */
-#screen-add, #screen-history, #screen-budgets, #screen-settings {
+#screen-add, #screen-history, #screen-budgets, #screen-settings,
+#screen-events, #screen-event-form {
   padding: calc(20px + var(--sat)) 16px 28px;
 }
 
@@ -1158,6 +1159,74 @@ input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; }
 .event-budget-amount       { font-size: 28px; font-weight: 800; color: var(--green); line-height: 1; }
 .event-budget-amount.neg   { color: var(--danger); }
 .event-budget-label        { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+
+/* Event form back header */
+.event-form-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.btn-back {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: none;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--rose);
+  cursor: pointer;
+  padding: 4px 0;
+  -webkit-tap-highlight-color: transparent;
+}
+.btn-back:active { opacity: 0.7; }
+
+/* Emoji picker */
+.emoji-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 10px;
+  background: var(--bg-elev);
+  border-radius: var(--radius-sm);
+  border: 1.5px solid var(--border);
+}
+.emoji-option {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  border: 2px solid transparent;
+  background: transparent;
+  font-size: 22px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.12s;
+  font-family: inherit;
+  line-height: 1;
+}
+.emoji-option:hover  { background: var(--pink-lt); }
+.emoji-option:active { transform: scale(0.9); }
+.emoji-option.selected { border-color: var(--rose); background: var(--pink-lt); }
+
+/* Category budget input in event form */
+.event-cat-budget-input {
+  width: 72px;
+  height: 36px;
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  padding: 0 8px;
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+  text-align: right;
+  background: var(--bg-elev);
+  color: var(--text);
+  flex-shrink: 0;
+}
+.event-cat-budget-input:focus { border-color: var(--rose); }
 
 /* Events screen section labels */
 .events-section-label {
