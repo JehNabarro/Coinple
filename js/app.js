@@ -246,7 +246,12 @@ function showScreen(id) {
   if (id === 'budgets')    renderCatBudgetList();
   if (id === 'events')     renderEventsScreen();
   if (id === 'event-form') renderEventFormScreen();
-  if (id === 'settings')   { renderPartnerList(); renderSheetStatus(); }
+  if (id === 'settings')   {
+    renderPartnerList();
+    renderSheetStatus();
+    const vEl = document.getElementById('app-version-label');
+    if (vEl) vEl.textContent = `Coinple v${APP_VERSION}`;
+  }
 }
 
 /* ── Toast ── */
