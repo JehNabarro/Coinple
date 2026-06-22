@@ -1036,6 +1036,139 @@ body.ready #loading-screen { display: none; }
 input[type="number"]::-webkit-inner-spin-button,
 input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; }
 
+/* ── Events ── */
+.event-card {
+  background: var(--bg-card);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 12px;
+  box-shadow: var(--shadow);
+  border: 1.5px solid var(--border);
+  cursor: pointer;
+  transition: transform 0.12s;
+  display: flex;
+  gap: 14px;
+  align-items: center;
+}
+.event-card:active { transform: scale(0.98); }
+.event-card.is-active { border-color: var(--rose); background: var(--pink-lt); }
+
+.event-emoji-large { font-size: 34px; flex-shrink: 0; line-height: 1; }
+.event-info { flex: 1; min-width: 0; }
+.event-name { font-size: 16px; font-weight: 700; }
+.event-dates { font-size: 12px; color: var(--text-muted); margin-top: 3px; }
+.event-spent { font-size: 13px; font-weight: 600; color: var(--rose); margin-top: 4px; }
+
+.event-status-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 20px;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.event-status-badge.active  { background: var(--pink-lt); color: var(--rose); }
+.event-status-badge.upcoming{ background: var(--gold-lt); color: var(--gold-dark); }
+.event-status-badge.past    { background: var(--bg-elev); color: var(--text-muted); }
+
+/* Active event banner shown inside finance-card on dashboard */
+.event-mode-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--pink-lt);
+  border: 1.5px solid var(--rose);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  margin-bottom: 14px;
+}
+.event-mode-bar-emoji { font-size: 20px; }
+.event-mode-bar-text  { flex: 1; font-size: 12px; font-weight: 700; color: var(--rose); }
+.event-mode-bar-link  {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--rose);
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  padding: 0;
+  text-decoration: underline;
+}
+
+/* Event category editor rows in form modal */
+.event-cat-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--border);
+}
+.event-cat-row:last-child { border-bottom: none; }
+.event-cat-emoji-input {
+  width: 44px;
+  height: 36px;
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  text-align: center;
+  font-size: 18px;
+  font-family: inherit;
+  outline: none;
+  background: var(--bg-elev);
+  color: var(--text);
+}
+.event-cat-name-input {
+  flex: 1;
+  height: 36px;
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  padding: 0 10px;
+  font-size: 14px;
+  font-family: inherit;
+  outline: none;
+  background: var(--bg-elev);
+  color: var(--text);
+}
+.event-cat-emoji-input:focus,
+.event-cat-name-input:focus { border-color: var(--rose); }
+.event-cat-remove {
+  background: none;
+  border: none;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 4px 6px;
+  color: var(--danger);
+  line-height: 1;
+  font-family: inherit;
+}
+
+/* Event detail modal */
+.event-detail-header { text-align: center; margin-bottom: 18px; }
+.event-detail-emoji  { font-size: 46px; line-height: 1; margin-bottom: 6px; }
+.event-detail-dates  { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
+
+.event-budget-overview {
+  background: var(--bg-elev);
+  border-radius: var(--radius-sm);
+  padding: 14px;
+  margin-bottom: 16px;
+  text-align: center;
+  border: 1px solid var(--border);
+}
+.event-budget-amount       { font-size: 28px; font-weight: 800; color: var(--green); line-height: 1; }
+.event-budget-amount.neg   { color: var(--danger); }
+.event-budget-label        { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+
+/* Events screen section labels */
+.events-section-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  margin: 18px 0 10px;
+}
+
 /* ── Safe area for iOS ── */
 @supports (padding-bottom: env(safe-area-inset-bottom)) {
   .toast { bottom: calc(var(--tab-h) + env(safe-area-inset-bottom) + 16px); }

@@ -28,7 +28,8 @@ let state = {
   coupleId: null,             // Supabase couple UUID
   partners: [],               // [{ id, email, name, photo }] — máx. 2
   categories: JSON.parse(JSON.stringify(DEFAULT_CATEGORIES)),
-  expenses: [],               // { id, amount, description, category, payerEmail, payerName, date, createdAt }
+  expenses: [],               // { id, amount, description, category, payerEmail, payerName, date, createdAt, eventId? }
+  events: [],                 // { id, name, emoji, totalBudget, startDate, endDate, categories, createdAt }
   settings: { apiKey: '' },
   totalBudget: 0,             // orçamento total do mês
   theme: 'dark',
@@ -46,6 +47,7 @@ function loadState() {
         categories: parsed.categories || JSON.parse(JSON.stringify(DEFAULT_CATEGORIES)),
         partners:   parsed.partners   || [],
         expenses:   parsed.expenses   || [],
+        events:     parsed.events     || [],
         settings:   { apiKey: '', ...(parsed.settings || {}) },
         totalBudget: parsed.totalBudget || 0,
         theme:       parsed.theme       || 'dark',
@@ -102,7 +104,38 @@ function totalSpentThisMonth(mk) {
 }
 
 function getCategory(id) {
-  return state.categories.find(c => c.id === id) || state.categories.find(c => c.id === 'outros') || state.categories[0];
+  let cat = state.categories.find(c => c.id === id);
+  if (cat) return cat;
+  for (const ev of (state.events || [])) {
+    cat = (ev.categories || []).find(c => c.id === id);
+    if (cat) return cat;
+  }
+  return state.categories.find(c => c.id === 'outros') || state.categories[0];
+}
+
+/* ── Event helpers ── */
+function getActiveEvent() {
+  const today = todayISO();
+  return (state.events || []).find(ev => ev.startDate <= today && ev.endDate >= today) || null;
+}
+
+function getEventStatus(ev) {
+  const today = todayISO();
+  if (ev.startDate <= today && ev.endDate >= today) return 'active';
+  if (ev.startDate > today) return 'upcoming';
+  return 'past';
+}
+
+function spentOnEvent(eventId) {
+  return state.expenses
+    .filter(e => e.eventId === eventId)
+    .reduce((s, e) => s + (e.amount || 0), 0);
+}
+
+function spentOnEventCategory(eventId, catId) {
+  return state.expenses
+    .filter(e => e.eventId === eventId && e.category === catId)
+    .reduce((s, e) => s + (e.amount || 0), 0);
 }
 
 function expensesForMonth(monthKey) {
@@ -209,6 +242,7 @@ function showScreen(id) {
   if (id === 'add')       resetAddForm();
   if (id === 'history')   renderHistory();
   if (id === 'budgets')   renderCatBudgetList();
+  if (id === 'events')    renderEventsScreen();
   if (id === 'settings')  { renderPartnerList(); renderSheetStatus(); }
 }
 
@@ -369,10 +403,20 @@ function subscribeRealtime() {
 
 /* ── Dashboard ── */
 function renderDashboard() {
-  renderCoupleCard();
-  renderBudgetOverview(currentMonthKey());
-  renderCategoryCards(currentMonthKey());
+  const activeEvent = getActiveEvent();
+  renderCoupleCard(activeEvent);
+  if (activeEvent) {
+    renderEventBudgetOverview(activeEvent);
+    renderEventCategoryCards(activeEvent);
+  } else {
+    renderBudgetOverview(currentMonthKey());
+    renderCategoryCards(currentMonthKey());
+  }
   renderRecentExpenses(currentMonthKey());
+
+  // Update "Editar orçamentos" link text
+  const editLink = document.querySelector('.section-header .section-link[onclick="openBudgetModal()"]');
+  if (editLink) editLink.textContent = activeEvent ? 'Ver orçamentos mensais' : 'Editar orçamentos';
 }
 
 function renderBudgetOverview(mk) {
@@ -394,10 +438,36 @@ function renderBudgetOverview(mk) {
     </div>`;
 }
 
-function renderCoupleCard() {
+function renderCoupleCard(activeEvent = null) {
   const photos = document.getElementById('couple-photos');
   const namesEl = document.getElementById('couple-names');
   const subEl = document.getElementById('couple-sub');
+
+  // Update finance card title
+  const titleEl = document.querySelector('.finance-title');
+  if (titleEl) {
+    titleEl.textContent = activeEvent
+      ? `${activeEvent.emoji} ${activeEvent.name}`
+      : 'Tranquilidade Financeira';
+  }
+
+  // Event mode bar inside finance-card
+  let eventBar = document.getElementById('event-mode-bar');
+  if (activeEvent) {
+    if (!eventBar) {
+      eventBar = document.createElement('div');
+      eventBar.id = 'event-mode-bar';
+      eventBar.className = 'event-mode-bar';
+      const budgetOverview = document.getElementById('budget-overview');
+      budgetOverview.parentNode.insertBefore(eventBar, budgetOverview);
+    }
+    eventBar.innerHTML = `
+      <span class="event-mode-bar-emoji">${activeEvent.emoji}</span>
+      <span class="event-mode-bar-text">Modo evento ativo</span>
+      <button class="event-mode-bar-link" onclick="showScreen('events')">Ver evento</button>`;
+  } else if (eventBar) {
+    eventBar.remove();
+  }
 
   const ps = state.partners;
   if (ps.length >= 2) {
@@ -413,6 +483,58 @@ function renderCoupleCard() {
     namesEl.textContent = 'Coinple';
     subEl.textContent = '';
   }
+}
+
+function renderEventBudgetOverview(ev) {
+  const el = document.getElementById('budget-overview');
+  if (!el) return;
+  const spent = spentOnEvent(ev.id);
+  const remaining = ev.totalBudget - spent;
+  const pct = ev.totalBudget ? Math.min((spent / ev.totalBudget) * 100, 100) : 0;
+
+  el.innerHTML = `
+    <div class="finance-total">
+      <div class="finance-total-amt ${remaining < 0 ? 'neg' : ''}">${formatCurrency(remaining)}</div>
+      <div class="finance-total-label">total disponível em "${ev.name}"</div>
+    </div>
+    <div class="finance-progress">
+      <div class="finance-progress-fill" style="width:${pct}%"></div>
+      <span class="finance-progress-marker" style="left:${pct}%;font-size:${(20 * (1 + pct / 100)).toFixed(1)}px">💸</span>
+    </div>`;
+}
+
+function renderEventCategoryCards(ev) {
+  const grid = document.getElementById('categories-grid');
+  const cats = ev.categories || [];
+  if (!cats.length) { grid.innerHTML = ''; return; }
+
+  const card = (cat, isBig) => {
+    const spent = spentOnEventCategory(ev.id, cat.id);
+    const tint = `color-mix(in srgb, ${cat.color || '#EC4899'} 16%, #fff)`;
+    const bar = `<div class="cat-progress"><div class="cat-progress-fill" style="width:0%"></div></div>`;
+    if (isBig) {
+      return `
+        <div class="cat-card big" style="background:${tint}" title="${cat.name}">
+          <div class="cat-icon-wrap">${cat.emoji}</div>
+          <div class="cat-avail">${formatCurrency(spent)}</div>
+          <div class="cat-avail-label">gasto</div>
+          ${bar}
+          <div class="cat-budget-line">${cat.name}</div>
+        </div>`;
+    }
+    return `
+      <div class="cat-card small" style="background:${tint}" title="${cat.name}">
+        <div class="cat-icon-wrap">${cat.emoji}</div>
+        ${bar}
+        <div class="cat-avail">${formatCurrency(spent)}</div>
+      </div>`;
+  };
+
+  const big   = cats.slice(0, 3);
+  const small = cats.slice(3);
+  grid.innerHTML = `
+    <div class="cat-row-big">${big.map(c => card(c, true)).join('')}</div>
+    ${small.length ? `<div class="cat-row-small">${small.map(c => card(c, false)).join('')}</div>` : ''}`;
 }
 
 function renderCategoryCards(mk) {
@@ -532,11 +654,22 @@ function renderPersonButtons() {
 
 function renderCategoryPills() {
   const container = document.getElementById('category-pills');
-  container.innerHTML = state.categories.map(cat => `
-    <button class="cat-pill ${addFormState.selectedCategory === cat.id ? 'selected' : ''}"
-            onclick="selectCategory('${cat.id}')">
-      ${cat.emoji} ${cat.name}
-    </button>`).join('');
+  const activeEvent = getActiveEvent();
+  const cats = activeEvent ? (activeEvent.categories || []) : state.categories;
+  if (activeEvent) {
+    container.innerHTML = `<div style="font-size:11px;font-weight:700;color:var(--rose);margin-bottom:6px;width:100%">Categorias de ${activeEvent.emoji} ${activeEvent.name}</div>` +
+      cats.map(cat => `
+        <button class="cat-pill ${addFormState.selectedCategory === cat.id ? 'selected' : ''}"
+                onclick="selectCategory('${cat.id}')">
+          ${cat.emoji} ${cat.name}
+        </button>`).join('');
+  } else {
+    container.innerHTML = cats.map(cat => `
+      <button class="cat-pill ${addFormState.selectedCategory === cat.id ? 'selected' : ''}"
+              onclick="selectCategory('${cat.id}')">
+        ${cat.emoji} ${cat.name}
+      </button>`).join('');
+  }
 }
 
 function selectPerson(email) {
@@ -622,6 +755,7 @@ function submitExpense() {
   if (!form) return;
 
   // O orçamento pode ficar negativo — não bloqueamos despesas que excedem o total.
+  const activeEvent = getActiveEvent();
   const payer = getPartner(addFormState.payerEmail);
   const expense = {
     id:          generateId(),
@@ -632,6 +766,7 @@ function submitExpense() {
     payerName:   payer?.name || '',
     date:        form.date,
     createdAt:   Date.now(),
+    ...(activeEvent ? { eventId: activeEvent.id } : {}),
   };
 
   state.expenses.push(expense);
@@ -838,12 +973,182 @@ async function handlePartnerPhotoChange(event) {
           .catch(err => showToast(`Aviso: não sincronizou (${err.message})`));
       }
       renderPartnerList();
-      renderCoupleCard();
+      renderCoupleCard(getActiveEvent());
       showToast('Fotinho atualizada! 📸💕');
     }
   } catch (err) {
     showToast(`Erro: ${err.message}`);
   }
+}
+
+/* ── Events ── */
+function renderEventsScreen() {
+  const events = state.events || [];
+  const today = todayISO();
+  const active   = events.filter(ev => ev.startDate <= today && ev.endDate >= today);
+  const upcoming = events.filter(ev => ev.startDate > today).sort((a, b) => a.startDate.localeCompare(b.startDate));
+  const past     = events.filter(ev => ev.endDate < today).sort((a, b) => b.endDate.localeCompare(a.endDate));
+
+  const container = document.getElementById('events-list-content');
+
+  if (!events.length) {
+    container.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-state-icon">🎉</div>
+        <h3>Sem eventos</h3>
+        <p>Cria um evento para gerir um orçamento especial — viagem, festa, aniversário…</p>
+      </div>`;
+    return;
+  }
+
+  const eventCard = (ev) => {
+    const status = getEventStatus(ev);
+    const spent  = spentOnEvent(ev.id);
+    const labels = { active: 'Ativo agora', upcoming: 'Próximo', past: 'Passado' };
+    return `
+      <div class="event-card ${status === 'active' ? 'is-active' : ''}" onclick="openEventDetail('${ev.id}')">
+        <div class="event-emoji-large">${ev.emoji || '🎉'}</div>
+        <div class="event-info">
+          <div class="event-name">${ev.name}</div>
+          <div class="event-dates">${formatDate(ev.startDate)} — ${formatDate(ev.endDate)}</div>
+          <div class="event-spent">${formatCurrency(spent)} de ${formatCurrency(ev.totalBudget)}</div>
+        </div>
+        <span class="event-status-badge ${status}">${labels[status]}</span>
+      </div>`;
+  };
+
+  let html = '';
+  if (active.length)   html += `<div class="events-section-label">Ativo agora</div>` + active.map(eventCard).join('');
+  if (upcoming.length) html += `<div class="events-section-label">Próximos</div>` + upcoming.map(eventCard).join('');
+  if (past.length)     html += `<div class="events-section-label">Passados</div>` + past.map(eventCard).join('');
+
+  container.innerHTML = html;
+}
+
+/* Event form */
+let eventFormState = { editingId: null, categories: [] };
+
+function openEventForm(eventId = null) {
+  const ev = eventId ? (state.events || []).find(e => e.id === eventId) : null;
+  eventFormState.editingId = eventId;
+
+  document.getElementById('event-form-title').textContent = ev ? 'Editar Evento' : 'Novo Evento';
+  document.getElementById('event-name').value   = ev?.name        || '';
+  document.getElementById('event-emoji').value  = ev?.emoji       || '🎉';
+  document.getElementById('event-budget').value = ev?.totalBudget || '';
+  document.getElementById('event-start').value  = ev?.startDate   || todayISO();
+  document.getElementById('event-end').value    = ev?.endDate     || '';
+  document.getElementById('btn-save-event').textContent = ev ? 'Guardar' : 'Criar Evento';
+
+  eventFormState.categories = JSON.parse(JSON.stringify(
+    ev ? (ev.categories || []) : DEFAULT_CATEGORIES
+  ));
+  renderEventCategoryEditor();
+  openModal('modal-event-form');
+}
+
+function renderEventCategoryEditor() {
+  const list = document.getElementById('event-categories-list');
+  if (!list) return;
+  list.innerHTML = eventFormState.categories.map((cat, i) => `
+    <div class="event-cat-row">
+      <input class="event-cat-emoji-input" type="text" value="${cat.emoji || ''}" maxlength="2"
+             oninput="updateEventCatField(${i},'emoji',this.value)" />
+      <input class="event-cat-name-input" type="text" value="${cat.name || ''}"
+             placeholder="Nome da categoria"
+             oninput="updateEventCatField(${i},'name',this.value)" />
+      <button class="event-cat-remove" onclick="removeEventCategory(${i})">✕</button>
+    </div>`).join('');
+}
+
+function updateEventCatField(idx, field, value) {
+  if (eventFormState.categories[idx]) eventFormState.categories[idx][field] = value;
+}
+
+function removeEventCategory(idx) {
+  eventFormState.categories.splice(idx, 1);
+  renderEventCategoryEditor();
+}
+
+function addEventCategory() {
+  eventFormState.categories.push({ id: 'ecat_' + generateId().slice(0, 8), name: '', emoji: '📦', color: '#6B7280', budget: 0 });
+  renderEventCategoryEditor();
+}
+
+function saveEvent() {
+  const name       = document.getElementById('event-name').value.trim();
+  const emoji      = document.getElementById('event-emoji').value.trim() || '🎉';
+  const totalBudget = parseFloat(document.getElementById('event-budget').value) || 0;
+  const startDate  = document.getElementById('event-start').value;
+  const endDate    = document.getElementById('event-end').value;
+
+  if (!name)                  { showToast('Dá um nome ao evento'); return; }
+  if (!startDate || !endDate) { showToast('Seleciona as datas do evento'); return; }
+  if (startDate > endDate)    { showToast('O início deve ser antes do fim'); return; }
+
+  const validCats = eventFormState.categories.filter(c => (c.name || '').trim());
+  if (!state.events) state.events = [];
+
+  if (eventFormState.editingId) {
+    const idx = state.events.findIndex(e => e.id === eventFormState.editingId);
+    if (idx >= 0) state.events[idx] = { ...state.events[idx], name, emoji, totalBudget, startDate, endDate, categories: validCats };
+    showToast('Evento atualizado! 🎉');
+  } else {
+    state.events.push({ id: generateId(), name, emoji, totalBudget, startDate, endDate, categories: validCats, createdAt: Date.now() });
+    showToast('Evento criado! 🎉');
+  }
+
+  saveState();
+  closeModal('modal-event-form');
+  renderEventsScreen();
+  if (activeScreen === 'dashboard') renderDashboard();
+}
+
+function deleteEvent(eventId) {
+  if (!confirm('Eliminar este evento?')) return;
+  state.events = (state.events || []).filter(e => e.id !== eventId);
+  saveState();
+  closeModal('modal-event-detail');
+  renderEventsScreen();
+  if (activeScreen === 'dashboard') renderDashboard();
+  showToast('Evento eliminado');
+}
+
+function openEventDetail(eventId) {
+  const ev = (state.events || []).find(e => e.id === eventId);
+  if (!ev) return;
+
+  const spent     = spentOnEvent(ev.id);
+  const remaining = ev.totalBudget - spent;
+  const pct       = ev.totalBudget ? Math.min((spent / ev.totalBudget) * 100, 100) : 0;
+
+  document.getElementById('event-detail-emoji').textContent = ev.emoji || '🎉';
+  document.getElementById('event-detail-name').textContent  = ev.name;
+  document.getElementById('event-detail-dates').textContent = `${formatDate(ev.startDate)} — ${formatDate(ev.endDate)}`;
+
+  document.getElementById('event-detail-budget').innerHTML = `
+    <div class="event-budget-amount ${remaining < 0 ? 'neg' : ''}">${formatCurrency(remaining)}</div>
+    <div class="event-budget-label">disponível de ${formatCurrency(ev.totalBudget)}</div>
+    <div class="finance-progress" style="margin-top:10px">
+      <div class="finance-progress-fill" style="width:${pct}%"></div>
+    </div>
+    <div style="font-size:12px;color:var(--text-muted);margin-top:6px">Gasto total: ${formatCurrency(spent)}</div>`;
+
+  const catsEl = document.getElementById('event-detail-cats');
+  catsEl.innerHTML = (ev.categories || []).map(cat => {
+    const catSpent = spentOnEventCategory(ev.id, cat.id);
+    return `
+      <div class="cat-edit-item">
+        <span class="cat-edit-emoji">${cat.emoji}</span>
+        <span class="cat-edit-name">${cat.name}</span>
+        <span style="font-weight:600;font-size:14px;color:var(--text)">${formatCurrency(catSpent)}</span>
+      </div>`;
+  }).join('');
+
+  document.getElementById('btn-edit-event').onclick   = () => { closeModal('modal-event-detail'); openEventForm(ev.id); };
+  document.getElementById('btn-delete-event').onclick = () => deleteEvent(ev.id);
+
+  openModal('modal-event-detail');
 }
 
 /* ── Settings / Budgets (páginas) ── */
@@ -910,6 +1215,38 @@ function renderCatBudgetList() {
       </div>`).join('')}`;
 
   renderBudgetAllocStatus();
+
+  // Show events overlapping the current month
+  const mk = currentMonthKey();
+  const monthEvents = (state.events || []).filter(ev =>
+    ev.startDate.slice(0, 7) <= mk && ev.endDate.slice(0, 7) >= mk
+  );
+  if (monthEvents.length) {
+    list.innerHTML += `
+      <div style="margin-top:18px;margin-bottom:8px;font-size:12px;font-weight:700;
+                  color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px">
+        Eventos do mês
+      </div>
+      ${monthEvents.map(ev => {
+        const spent = spentOnEvent(ev.id);
+        const pct   = ev.totalBudget ? Math.min((spent / ev.totalBudget) * 100, 100) : 0;
+        const cls   = spent > ev.totalBudget ? 'progress-red' : spent / (ev.totalBudget || 1) > 0.75 ? 'progress-pink' : 'progress-gold';
+        return `
+          <div class="cat-edit-item" onclick="openEventDetail('${ev.id}')"
+               style="cursor:pointer;flex-direction:column;align-items:stretch;gap:6px">
+            <div style="display:flex;align-items:center;gap:10px">
+              <span class="cat-edit-emoji">${ev.emoji}</span>
+              <span class="cat-edit-name">${ev.name}</span>
+              <span style="font-size:13px;font-weight:600;color:var(--rose);margin-left:auto">
+                ${formatCurrency(spent)} / ${formatCurrency(ev.totalBudget)}
+              </span>
+            </div>
+            <div class="progress-bar">
+              <div class="progress-fill ${cls}" style="width:${pct}%"></div>
+            </div>
+          </div>`;
+      }).join('')}`;
+  }
 }
 
 function renderBudgetAllocStatus() {
@@ -1060,7 +1397,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   document.getElementById('tab-history').addEventListener('click',   () => showScreen('history'));
   document.getElementById('tab-budgets').addEventListener('click', openBudgetModal);
-  document.getElementById('tab-settings').addEventListener('click', openSettings);
+  document.getElementById('tab-events').addEventListener('click',   () => showScreen('events'));
 
   document.getElementById('btn-sync').addEventListener('click', () => syncFromSupabase());
   document.getElementById('btn-logout').addEventListener('click', handleLogout);

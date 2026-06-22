@@ -42,7 +42,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&display=swap" />
-  <link rel="stylesheet" href="css/style.css?v=5" />
+  <link rel="stylesheet" href="css/style.css?v=6" />
 </head>
 <body class="logged-out">
 
@@ -134,7 +134,7 @@
 
       <!-- Finance card -->
       <div class="finance-card">
-        <div class="couple-photos" id="couple-photos"></div>
+        <div class="couple-photos" id="couple-photos" onclick="openSettings()" title="Definições" style="cursor:pointer"></div>
         <div class="finance-title-row">
           <span class="finance-bar"></span>
           <div>
@@ -225,6 +225,13 @@
       <button class="btn btn-primary" id="btn-save-budgets">Guardar orçamentos</button>
     </section>
 
+    <!-- Eventos -->
+    <section id="screen-events" class="screen">
+      <div class="screen-title">Eventos</div>
+      <button class="btn btn-primary" onclick="openEventForm()" style="margin-bottom:20px">+ Novo Evento</button>
+      <div id="events-list-content"></div>
+    </section>
+
     <!-- Configuração -->
     <section id="screen-settings" class="screen">
       <div class="screen-title">Definições</div>
@@ -284,12 +291,11 @@
       </svg>
       Relatório
     </button>
-    <button class="tab-btn" id="tab-settings">
+    <button class="tab-btn" id="tab-events">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="12" cy="12" r="3"/>
-        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
       </svg>
-      Configuração
+      Eventos
     </button>
   </nav>
 
@@ -325,6 +331,72 @@
   </div>
 </div>
 
+<!-- Event Form Modal -->
+<div class="modal-backdrop" id="modal-event-form">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <h2 class="modal-title" id="event-form-title">Novo Evento</h2>
+
+    <div class="form-group">
+      <label class="form-label">Nome do evento</label>
+      <input class="form-input" type="text" id="event-name" placeholder="Ex: Viagem ao Porto" />
+    </div>
+
+    <div style="display:flex;gap:10px">
+      <div class="form-group" style="width:72px;flex-shrink:0">
+        <label class="form-label">Emoji</label>
+        <input class="form-input" type="text" id="event-emoji" value="🎉" maxlength="2" style="text-align:center;font-size:22px;padding:0 4px" />
+      </div>
+      <div class="form-group" style="flex:1">
+        <label class="form-label">Orçamento total (€)</label>
+        <input class="form-input" type="number" id="event-budget" placeholder="0" min="0" step="10" inputmode="decimal" />
+      </div>
+    </div>
+
+    <div style="display:flex;gap:10px">
+      <div class="form-group" style="flex:1">
+        <label class="form-label">Início</label>
+        <input class="form-input" type="date" id="event-start" />
+      </div>
+      <div class="form-group" style="flex:1">
+        <label class="form-label">Fim</label>
+        <input class="form-input" type="date" id="event-end" />
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Categorias</label>
+      <div id="event-categories-list"></div>
+      <button class="btn btn-secondary btn-sm" onclick="addEventCategory()" style="margin-top:8px;width:100%">+ Adicionar categoria</button>
+    </div>
+
+    <button class="btn btn-primary" id="btn-save-event" onclick="saveEvent()">Criar Evento</button>
+    <div style="height:10px"></div>
+    <button class="btn btn-secondary" data-close-modal="modal-event-form">Cancelar</button>
+  </div>
+</div>
+
+<!-- Event Detail Modal -->
+<div class="modal-backdrop" id="modal-event-detail">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="event-detail-header">
+      <div class="event-detail-emoji" id="event-detail-emoji">🎉</div>
+      <h2 class="modal-title" id="event-detail-name" style="margin-bottom:4px">Evento</h2>
+      <div class="event-detail-dates" id="event-detail-dates"></div>
+    </div>
+    <div class="event-budget-overview" id="event-detail-budget"></div>
+    <div id="event-detail-cats"></div>
+    <div style="height:20px"></div>
+    <div class="btn-row">
+      <button class="btn btn-secondary btn-sm" id="btn-edit-event">✏️ Editar</button>
+      <button class="btn btn-danger btn-sm" id="btn-delete-event">🗑️ Eliminar</button>
+    </div>
+    <div style="height:12px"></div>
+    <button class="btn btn-secondary" data-close-modal="modal-event-detail">Fechar</button>
+  </div>
+</div>
+
 <!-- Hidden photo upload input (set per partner via JS) -->
 <input type="file" id="partner-photo-file" accept="image/*" style="display:none" />
 
@@ -334,9 +406,9 @@
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js" defer></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
 <script src="js/config.js?v=5"></script>
-<script src="js/api.js?v=5" defer></script>
-<script src="js/auth.js?v=5" defer></script>
-<script src="js/db.js?v=5" defer></script>
-<script src="js/app.js?v=5" defer></script>
+<script src="js/api.js?v=6" defer></script>
+<script src="js/auth.js?v=6" defer></script>
+<script src="js/db.js?v=6" defer></script>
+<script src="js/app.js?v=6" defer></script>
 </body>
 </html>
