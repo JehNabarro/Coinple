@@ -42,7 +42,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&display=swap" />
-  <link rel="stylesheet" href="css/style.css?v=3" />
+  <link rel="stylesheet" href="css/style.css?v=4" />
 </head>
 <body class="logged-out">
 
@@ -217,6 +217,39 @@
       <div id="history-list"></div>
     </section>
 
+    <!-- Orçamentos -->
+    <section id="screen-budgets" class="screen">
+      <div class="screen-title">Orçamentos Mensais</div>
+      <div id="cat-budget-list"></div>
+      <div style="height:16px"></div>
+      <button class="btn btn-primary" id="btn-save-budgets">Guardar orçamentos</button>
+    </section>
+
+    <!-- Configuração -->
+    <section id="screen-settings" class="screen">
+      <div class="screen-title">Definições</div>
+
+      <div class="settings-section">
+        <div class="settings-section-title">Nosso casal 💛💗</div>
+        <div id="partner-list"></div>
+        <p class="settings-note">Toca na fotinho para mudar a foto 📸</p>
+      </div>
+
+      <div class="settings-section">
+        <div class="settings-section-title">Conta do casal</div>
+        <div id="sheet-status" class="sheet-status"></div>
+        <div class="btn-row" style="margin-top:10px">
+          <button class="btn btn-secondary btn-sm" id="btn-sync">🔄 Sincronizar</button>
+          <button class="btn btn-secondary btn-sm" id="btn-open-sheet">🔗 Copiar código</button>
+        </div>
+      </div>
+
+      <div style="height:12px"></div>
+      <button class="btn btn-primary" id="btn-save-settings">Guardar</button>
+      <div style="height:10px"></div>
+      <button class="btn btn-danger" id="btn-logout">Sair da conta</button>
+    </section>
+
   </div>
 
   <!-- ── Bottom Tab Bar ── -->
@@ -292,49 +325,6 @@
   </div>
 </div>
 
-<!-- Settings -->
-<div class="modal-backdrop" id="modal-settings">
-  <div class="modal">
-    <div class="modal-handle"></div>
-    <h2 class="modal-title">Definições</h2>
-
-    <div class="settings-section">
-      <div class="settings-section-title">Nosso casal 💛💗</div>
-      <div id="partner-list"></div>
-      <p class="settings-note">Toca na fotinho para mudar a foto 📸</p>
-    </div>
-
-    <div class="settings-section">
-      <div class="settings-section-title">Conta do casal</div>
-      <div id="sheet-status" class="sheet-status"></div>
-      <div class="btn-row" style="margin-top:10px">
-        <button class="btn btn-secondary btn-sm" id="btn-sync">🔄 Sincronizar</button>
-        <button class="btn btn-secondary btn-sm" id="btn-open-sheet">🔗 Copiar código</button>
-      </div>
-    </div>
-
-    <div style="height:12px"></div>
-    <button class="btn btn-primary" id="btn-save-settings">Guardar</button>
-    <div style="height:10px"></div>
-    <button class="btn btn-secondary" data-close-modal="modal-settings">Cancelar</button>
-    <div style="height:10px"></div>
-    <button class="btn btn-danger" id="btn-logout">Sair da conta</button>
-  </div>
-</div>
-
-<!-- Modal Orçamentos -->
-<div class="modal-backdrop" id="modal-budgets">
-  <div class="modal">
-    <div class="modal-handle"></div>
-    <h2 class="modal-title">Orçamentos Mensais</h2>
-    <div id="cat-budget-list"></div>
-    <div style="height:16px"></div>
-    <button class="btn btn-primary" id="btn-save-budgets">Guardar orçamentos</button>
-    <div style="height:10px"></div>
-    <button class="btn btn-secondary" data-close-modal="modal-budgets">Cancelar</button>
-  </div>
-</div>
-
 <!-- Hidden photo upload input (set per partner via JS) -->
 <input type="file" id="partner-photo-file" accept="image/*" style="display:none" />
 
@@ -343,10 +333,10 @@
 
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js" defer></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
-<script src="js/config.js?v=3"></script>
-<script src="js/api.js?v=3" defer></script>
-<script src="js/auth.js?v=3" defer></script>
-<script src="js/db.js?v=3" defer></script>
-<script src="js/app.js?v=3" defer></script>
+<script src="js/config.js?v=4"></script>
+<script src="js/api.js?v=4" defer></script>
+<script src="js/auth.js?v=4" defer></script>
+<script src="js/db.js?v=4" defer></script>
+<script src="js/app.js?v=4" defer></script>
 </body>
 </html>

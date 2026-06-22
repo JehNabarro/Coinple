@@ -268,8 +268,8 @@ body.ready #loading-screen { display: none; }
   background: var(--rose);
 }
 
-.avatar.tone-gold { border: 2.5px solid #fff; background: #D8A24B; }
-.avatar.tone-pink { border: 2.5px solid #fad9cc; background: var(--rose); }
+.avatar.tone-gold { border: 2.5px solid #fad9cc; background: #D8A24B; }
+.avatar.tone-pink { border: 2.5px solid #fff; background: var(--rose); }
 
 .avatar-xs { width: 18px; height: 18px; font-size: 9px;  border-width: 1.5px !important; }
 .avatar-sm { width: 28px; height: 28px; font-size: 12px; }
@@ -312,7 +312,7 @@ body.ready #loading-screen { display: none; }
 .screen.active { display: block; }
 
 /* Screens com cabeçalho próprio (sem barra de topo global) */
-#screen-add, #screen-history {
+#screen-add, #screen-history, #screen-budgets, #screen-settings {
   padding: calc(20px + var(--sat)) 16px 28px;
 }
 

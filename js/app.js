@@ -177,7 +177,6 @@ function toggleTheme(isLight) {
 
 /* ── Views: login / setup / app ── */
 function showView(view) {
-  document.body.classList.add('ready'); // esconde o ecrã de loading
   document.body.classList.toggle('logged-out', view === 'login');
   document.body.classList.toggle('in-setup', view === 'setup');
   if (view === 'setup') renderSetup();
@@ -197,6 +196,8 @@ function showScreen(id) {
   if (id === 'dashboard') renderDashboard();
   if (id === 'add')       resetAddForm();
   if (id === 'history')   renderHistory();
+  if (id === 'budgets')   renderCatBudgetList();
+  if (id === 'settings')  { renderPartnerList(); renderSheetStatus(); }
 }
 
 /* ── Toast ── */
@@ -249,7 +250,6 @@ function handleDemoLogin() {
 
 async function handleLogout() {
   if (!confirm('Sair da Coinple neste aparelho?')) return;
-  closeModal('modal-settings');
   if (state.demoMode) {
     state.user     = null;
     state.demoMode = false;
@@ -834,16 +834,13 @@ async function handlePartnerPhotoChange(event) {
   }
 }
 
-/* ── Settings Modal ── */
+/* ── Settings / Budgets (páginas) ── */
 function openSettings() {
-  renderPartnerList();
-  renderSheetStatus();
-  openModal('modal-settings');
+  showScreen('settings');
 }
 
 function openBudgetModal() {
-  renderCatBudgetList();
-  openModal('modal-budgets');
+  showScreen('budgets');
 }
 
 function renderPartnerList() {
@@ -957,9 +954,8 @@ function saveSettings() {
     });
   }
 
-  closeModal('modal-settings');
   showToast('Definições guardadas! 💛');
-  renderCoupleCard();
+  showScreen('dashboard');
 }
 
 function saveBudgets() {
@@ -981,9 +977,8 @@ function saveBudgets() {
       .catch(err => showToast(`Aviso: não sincronizou (${err.message})`));
   }
 
-  closeModal('modal-budgets');
   showToast('Orçamentos guardados! 💰');
-  renderDashboard();
+  showScreen('dashboard');
 }
 
 function handleOpenSheet() {
@@ -1010,12 +1005,12 @@ function handleExportXlsx() {
 
 /* ── Modal helpers ── */
 function openModal(id) {
-  document.getElementById(id).classList.add('open');
+  document.getElementById(id)?.classList.add('open');
   document.body.style.overflow = 'hidden';
 }
 
 function closeModal(id) {
-  document.getElementById(id).classList.remove('open');
+  document.getElementById(id)?.classList.remove('open');
   document.body.style.overflow = '';
 }
 
@@ -1024,8 +1019,8 @@ document.addEventListener('DOMContentLoaded', () => {
   loadState();
   applyTheme(state.theme || 'dark');
 
-  // Rede de segurança: nunca deixar o loading preso
-  setTimeout(() => document.body.classList.add('ready'), 5000);
+  // Ecrã de loading fixo de 2 segundos
+  setTimeout(() => document.body.classList.add('ready'), 2000);
 
   // Login / setup
   document.getElementById('btn-google-login').addEventListener('click', handleGoogleLogin);
