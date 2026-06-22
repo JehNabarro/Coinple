@@ -447,31 +447,12 @@ function renderCoupleCard(activeEvent = null) {
   const namesEl = document.getElementById('couple-names');
   const subEl = document.getElementById('couple-sub');
 
-  // Update finance card title
+  // Title is always "Tranquilidade Financeira"
   const titleEl = document.querySelector('.finance-title');
-  if (titleEl) {
-    titleEl.textContent = activeEvent
-      ? `${activeEvent.emoji} ${activeEvent.name}`
-      : 'Tranquilidade Financeira';
-  }
+  if (titleEl) titleEl.textContent = 'Tranquilidade Financeira';
 
-  // Event mode bar inside finance-card
-  let eventBar = document.getElementById('event-mode-bar');
-  if (activeEvent) {
-    if (!eventBar) {
-      eventBar = document.createElement('div');
-      eventBar.id = 'event-mode-bar';
-      eventBar.className = 'event-mode-bar';
-      const budgetOverview = document.getElementById('budget-overview');
-      budgetOverview.parentNode.insertBefore(eventBar, budgetOverview);
-    }
-    eventBar.innerHTML = `
-      <span class="event-mode-bar-emoji">${activeEvent.emoji}</span>
-      <span class="event-mode-bar-text">Modo evento ativo</span>
-      <button class="event-mode-bar-link" onclick="showScreen('events')">Ver evento</button>`;
-  } else if (eventBar) {
-    eventBar.remove();
-  }
+  // Remove any leftover event-mode-bar
+  document.getElementById('event-mode-bar')?.remove();
 
   const ps = state.partners;
   if (ps.length >= 2) {
@@ -498,7 +479,10 @@ function renderEventBudgetOverview(ev) {
 
   el.innerHTML = `
     <div class="finance-total">
-      <div class="finance-total-amt ${remaining < 0 ? 'neg' : ''}">${formatCurrency(remaining)}</div>
+      <div class="finance-total-row">
+        <div class="finance-total-amt ${remaining < 0 ? 'neg' : ''}">${formatCurrency(remaining)}</div>
+        <button class="event-badge-btn" onclick="openEventDetail('${ev.id}')" title="Ver ${ev.name}">${ev.emoji}</button>
+      </div>
       <div class="finance-total-label">total disponível em "${ev.name}"</div>
     </div>
     <div class="finance-progress">
@@ -1037,6 +1021,74 @@ function renderEventsScreen() {
 }
 
 /* ── Event form screen ── */
+/* ── Drag-to-reorder utility (Pointer Events, works mouse + touch) ── */
+function setupSortable(listEl, onReorder) {
+  if (!listEl) return;
+  let dragRow = null;
+  let placeholder = null;
+  let pid = null;
+
+  function getRows() {
+    return Array.from(listEl.querySelectorAll('[data-sort-idx]'));
+  }
+
+  listEl.querySelectorAll('.drag-handle').forEach(handle => {
+    handle.addEventListener('pointerdown', e => {
+      e.preventDefault();
+      const row = handle.closest('[data-sort-idx]');
+      if (!row) return;
+      handle.setPointerCapture(e.pointerId);
+      pid = e.pointerId;
+      dragRow = row;
+
+      placeholder = document.createElement('div');
+      placeholder.className = 'drag-placeholder';
+      placeholder.style.height = row.offsetHeight + 'px';
+      row.after(placeholder);
+      row.classList.add('dragging-row');
+    });
+
+    handle.addEventListener('pointermove', e => {
+      if (!dragRow || e.pointerId !== pid) return;
+      const y = e.clientY;
+      const others = getRows().filter(r => r !== dragRow);
+      let inserted = false;
+      for (const r of others) {
+        const rect = r.getBoundingClientRect();
+        if (y < rect.top + rect.height / 2) {
+          listEl.insertBefore(placeholder, r);
+          inserted = true;
+          break;
+        }
+      }
+      if (!inserted && placeholder.parentNode === listEl) {
+        listEl.appendChild(placeholder);
+      }
+    });
+
+    handle.addEventListener('pointerup', e => {
+      if (!dragRow || e.pointerId !== pid) return;
+      listEl.insertBefore(dragRow, placeholder);
+      placeholder.remove();
+      placeholder = null;
+      dragRow.classList.remove('dragging-row');
+      const newOrder = getRows().map(r => parseInt(r.dataset.sortIdx));
+      dragRow = null;
+      pid = null;
+      onReorder(newOrder);
+    });
+
+    handle.addEventListener('pointercancel', e => {
+      if (!dragRow || e.pointerId !== pid) return;
+      placeholder?.remove();
+      dragRow.classList.remove('dragging-row');
+      dragRow = null;
+      placeholder = null;
+      pid = null;
+    });
+  });
+}
+
 let eventFormState = { editingId: null, selectedEmoji: '🎉', totalBudget: 0, categories: [] };
 
 function openEventForm(eventId = null) {
@@ -1060,39 +1112,103 @@ function renderEventFormScreen() {
   document.getElementById('event-end').value    = ev?.endDate   || '';
   document.getElementById('btn-save-event').textContent = ev ? 'Guardar' : 'Criar Evento';
 
-  renderEmojiPicker();
+  const emojiBtn = document.getElementById('event-emoji-btn');
+  if (emojiBtn) emojiBtn.textContent = eventFormState.selectedEmoji || '🎉';
   renderEventCategoryEditor();
   renderEventBudgetAllocStatus();
 }
 
-function renderEmojiPicker() {
-  const container = document.getElementById('event-emoji-picker');
-  if (!container) return;
-  container.innerHTML = EVENT_EMOJIS.map(emoji => `
-    <button class="emoji-option ${eventFormState.selectedEmoji === emoji ? 'selected' : ''}"
-            onclick="selectEventEmoji('${emoji}')" type="button">${emoji}</button>`).join('');
+/* ── Emoji popup (shared for event + category emoji pickers) ── */
+let _emojiPopupCb = null;
+
+function openEmojiPopup(anchorEl, currentEmoji, onSelect) {
+  document.getElementById('emoji-popup')?.remove();
+  _emojiPopupCb = onSelect;
+
+  const popup = document.createElement('div');
+  popup.id = 'emoji-popup';
+  popup.className = 'emoji-popup';
+  popup.innerHTML = EVENT_EMOJIS.map(e => `
+    <button class="emoji-option ${e === currentEmoji ? 'selected' : ''}"
+            onclick="pickFromPopup('${e}')" type="button">${e}</button>`).join('');
+  document.body.appendChild(popup);
+
+  const rect = anchorEl.getBoundingClientRect();
+  const pw = 244;
+  let left = rect.left;
+  if (left + pw > window.innerWidth - 8) left = window.innerWidth - pw - 8;
+  left = Math.max(8, left);
+  let top = rect.bottom + 4;
+  if (top + 210 > window.innerHeight) top = rect.top - 214;
+  popup.style.left = left + 'px';
+  popup.style.top  = top  + 'px';
+
+  setTimeout(() => document.addEventListener('click', closeEmojiPopup, { once: true }), 0);
 }
 
-function selectEventEmoji(emoji) {
-  eventFormState.selectedEmoji = emoji;
-  renderEmojiPicker();
+function pickFromPopup(emoji) {
+  const cb = _emojiPopupCb;
+  closeEmojiPopup();
+  if (cb) cb(emoji);
+}
+
+function closeEmojiPopup() {
+  document.getElementById('emoji-popup')?.remove();
+  _emojiPopupCb = null;
+}
+
+function openEventEmojiPicker(anchorEl) {
+  openEmojiPopup(anchorEl, eventFormState.selectedEmoji, emoji => {
+    eventFormState.selectedEmoji = emoji;
+    const btn = document.getElementById('event-emoji-btn');
+    if (btn) btn.textContent = emoji;
+  });
+}
+
+function openEventCatEmojiPicker(idx, anchorEl) {
+  const cat = eventFormState.categories[idx];
+  openEmojiPopup(anchorEl, cat?.emoji || '📦', emoji => {
+    updateEventCatField(idx, 'emoji', emoji);
+    anchorEl.textContent = emoji;
+  });
+}
+
+function openBudgetCatEmojiPicker(catId, anchorEl) {
+  const cat = state.categories.find(c => c.id === catId);
+  openEmojiPopup(anchorEl, cat?.emoji || '📦', emoji => {
+    if (cat) cat.emoji = emoji;
+    anchorEl.textContent = emoji;
+  });
 }
 
 function renderEventCategoryEditor() {
   const list = document.getElementById('event-categories-list');
   if (!list) return;
   list.innerHTML = eventFormState.categories.map((cat, i) => `
-    <div class="event-cat-row">
-      <input class="event-cat-emoji-input" type="text" value="${cat.emoji || ''}" maxlength="2"
-             oninput="updateEventCatField(${i},'emoji',this.value)" />
+    <div class="event-cat-row" data-sort-idx="${i}">
+      <div class="drag-handle" title="Arrastar">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+          <circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/>
+          <circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/>
+          <circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/>
+        </svg>
+      </div>
+      <button class="cat-emoji-btn" onclick="openEventCatEmojiPicker(${i},this)" type="button">${cat.emoji || '📦'}</button>
       <input class="event-cat-name-input" type="text" value="${cat.name || ''}"
              placeholder="Nome"
              oninput="updateEventCatField(${i},'name',this.value)" />
       <input class="event-cat-budget-input" type="number" value="${cat.budget || ''}"
              placeholder="€" min="0" step="10" inputmode="decimal"
              oninput="updateEventCatBudget(${i},this.value)" />
-      <button class="event-cat-remove" onclick="removeEventCategory(${i})">✕</button>
+      <button class="event-cat-remove" onclick="removeEventCategory(${i})" type="button">✕</button>
     </div>`).join('');
+
+  setupSortable(list, newOrder => {
+    const old = [...eventFormState.categories];
+    eventFormState.categories = newOrder.map(i => old[i]);
+    renderEventCategoryEditor();
+    renderEventBudgetAllocStatus();
+  });
 }
 
 function updateEventCatField(idx, field, value) {
@@ -1284,6 +1400,12 @@ function renderSheetStatus() {
   }
 }
 
+const DRAG_HANDLE_SVG = `<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+  <circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/>
+  <circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/>
+  <circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/>
+</svg>`;
+
 function renderCatBudgetList() {
   const total = state.totalBudget || 0;
   const list = document.getElementById('cat-budget-list');
@@ -1296,16 +1418,31 @@ function renderCatBudgetList() {
              oninput="onTotalBudgetInput(this.value)" />
     </div>
     <div id="budget-alloc-status"></div>
-    ${state.categories.map(cat => `
-      <div class="cat-edit-item">
-        <span class="cat-edit-emoji">${cat.emoji}</span>
-        <span class="cat-edit-name">${cat.name}</span>
-        <input class="cat-edit-budget" type="number" min="0" step="10"
-               value="${cat.budget || 0}" data-cat="${cat.id}"
-               oninput="updateCatBudget('${cat.id}', this.value)" />
-      </div>`).join('')}`;
+    <div id="cat-sortable-list">
+      ${state.categories.map((cat, i) => `
+        <div class="cat-edit-item" data-sort-idx="${i}" data-cat-id="${cat.id}">
+          <div class="drag-handle" title="Arrastar">${DRAG_HANDLE_SVG}</div>
+          <button class="cat-emoji-btn" onclick="openBudgetCatEmojiPicker('${cat.id}',this)" type="button">${cat.emoji}</button>
+          <input class="cat-name-editable" type="text" value="${cat.name || ''}" placeholder="Nome"
+                 oninput="updateBudgetCatName('${cat.id}',this.value)" />
+          <input class="cat-edit-budget" type="number" min="0" step="10"
+                 value="${cat.budget || 0}" data-cat="${cat.id}"
+                 oninput="updateCatBudget('${cat.id}', this.value)" />
+          <button class="event-cat-remove" onclick="removeBudgetCategory('${cat.id}')" type="button">✕</button>
+        </div>`).join('')}
+    </div>
+    <button class="btn btn-secondary btn-sm" onclick="addBudgetCategory()"
+            style="margin-top:10px;width:100%">+ Adicionar categoria</button>`;
 
   renderBudgetAllocStatus();
+
+  const sortableEl = document.getElementById('cat-sortable-list');
+  setupSortable(sortableEl, newOrder => {
+    const old = [...state.categories];
+    state.categories = newOrder.map(i => old[i]);
+    saveState();
+    renderCatBudgetList();
+  });
 
   // Show events overlapping the current month
   const mk = currentMonthKey();
@@ -1378,6 +1515,32 @@ function updateCatBudget(id, value) {
   const cat = state.categories.find(c => c.id === id);
   if (cat) cat.budget = parseFloat(value) || 0;
   renderBudgetAllocStatus();
+}
+
+function updateBudgetCatName(catId, value) {
+  const cat = state.categories.find(c => c.id === catId);
+  if (cat) cat.name = value;
+}
+
+function addBudgetCategory() {
+  state.categories.push({
+    id: 'cat_' + generateId().slice(0, 8),
+    name: '',
+    emoji: '📦',
+    budget: 0,
+    color: '#6B7280',
+  });
+  renderCatBudgetList();
+  setTimeout(() => {
+    const inputs = document.querySelectorAll('#cat-sortable-list .cat-name-editable');
+    inputs[inputs.length - 1]?.focus();
+  }, 50);
+}
+
+function removeBudgetCategory(catId) {
+  state.categories = state.categories.filter(c => c.id !== catId);
+  saveState();
+  renderCatBudgetList();
 }
 
 function saveSettings() {

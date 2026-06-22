@@ -42,7 +42,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&display=swap" />
-  <link rel="stylesheet" href="css/style.css?v=7" />
+  <link rel="stylesheet" href="css/style.css?v=8" />
 </head>
 <body class="logged-out">
 
@@ -255,7 +255,11 @@
 
       <div class="form-group">
         <label class="form-label">Emoji</label>
-        <div class="emoji-picker" id="event-emoji-picker"></div>
+        <div style="display:flex;align-items:center;gap:12px">
+          <button class="emoji-selector-btn" id="event-emoji-btn"
+                  onclick="openEventEmojiPicker(this)" type="button">🎉</button>
+          <span style="font-size:13px;color:var(--text-muted)">Toca para escolher</span>
+        </div>
       </div>
 
       <div class="form-group">
@@ -419,6 +423,6 @@
 <script src="js/api.js?v=7" defer></script>
 <script src="js/auth.js?v=7" defer></script>
 <script src="js/db.js?v=7" defer></script>
-<script src="js/app.js?v=7" defer></script>
+<script src="js/app.js?v=8" defer></script>
 </body>
 </html>

@@ -404,6 +404,12 @@ body.ready #loading-screen { display: none; }
 
 /* total disponível + progresso */
 .finance-total { text-align: right; margin-bottom: 14px; }
+.finance-total-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
 .finance-total-amt {
   font-size: 30px;
   font-weight: 800;
@@ -412,6 +418,24 @@ body.ready #loading-screen { display: none; }
 }
 .finance-total-amt.neg { color: var(--danger); }
 .finance-total-label { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+
+/* Event emoji badge on home dashboard */
+.event-badge-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--pink-lt);
+  border: 2px solid var(--rose);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: transform 0.12s;
+  -webkit-tap-highlight-color: transparent;
+}
+.event-badge-btn:active { transform: scale(0.88); }
 
 .finance-progress {
   position: relative;
@@ -1210,6 +1234,108 @@ input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; }
 .emoji-option:hover  { background: var(--pink-lt); }
 .emoji-option:active { transform: scale(0.9); }
 .emoji-option.selected { border-color: var(--rose); background: var(--pink-lt); }
+
+/* Floating emoji popup */
+.emoji-popup {
+  position: fixed;
+  z-index: 600;
+  background: var(--bg-card);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 8px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.28);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  width: 244px;
+  max-height: 210px;
+  overflow-y: auto;
+}
+
+/* Emoji selector trigger button (in event form) */
+.emoji-selector-btn {
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+  border: 2px solid var(--border);
+  background: var(--bg-elev);
+  font-size: 30px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.12s;
+  -webkit-tap-highlight-color: transparent;
+  line-height: 1;
+}
+.emoji-selector-btn:hover  { border-color: var(--rose); background: var(--pink-lt); }
+.emoji-selector-btn:active { transform: scale(0.92); }
+
+/* Emoji button in category rows */
+.cat-emoji-btn {
+  width: 40px;
+  height: 36px;
+  border-radius: 8px;
+  border: 1.5px solid var(--border);
+  background: var(--bg-elev);
+  font-size: 18px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: border-color 0.12s;
+  -webkit-tap-highlight-color: transparent;
+  line-height: 1;
+}
+.cat-emoji-btn:hover  { border-color: var(--rose); }
+.cat-emoji-btn:active { opacity: 0.7; }
+
+/* Drag handle */
+.drag-handle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  flex-shrink: 0;
+  color: var(--text-muted);
+  cursor: grab;
+  touch-action: none;
+  opacity: 0.5;
+  -webkit-tap-highlight-color: transparent;
+}
+.drag-handle:active { cursor: grabbing; opacity: 0.9; }
+.drag-handle svg { pointer-events: none; }
+
+/* Row being dragged */
+.dragging-row {
+  opacity: 0.35;
+}
+
+/* Placeholder during drag */
+.drag-placeholder {
+  background: var(--pink-lt);
+  border: 2px dashed var(--rose);
+  border-radius: 10px;
+  margin: 2px 0;
+  min-height: 44px;
+}
+
+/* Editable name input in monthly budget list */
+.cat-name-editable {
+  flex: 1;
+  height: 36px;
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  padding: 0 10px;
+  font-size: 14px;
+  font-family: inherit;
+  outline: none;
+  background: var(--bg-elev);
+  color: var(--text);
+  min-width: 0;
+}
+.cat-name-editable:focus { border-color: var(--rose); }
 
 /* Category budget input in event form */
 .event-cat-budget-input {
