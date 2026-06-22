@@ -57,8 +57,6 @@ html, body {
 /* Tranca a página ao viewport (evita scroll/resize do body em PWA standalone iOS,
    garantindo que a barra inferior fica mesmo no fundo) */
 html, body {
-  position: fixed;
-  inset: 0;
   width: 100%;
   overflow: hidden;
   overscroll-behavior: none;
@@ -281,13 +279,14 @@ body.ready #loading-screen { display: none; }
 #app {
   display: flex;
   flex-direction: column;
-  /* Ancorado às bordas reais do viewport — fiável em PWA standalone (iOS),
-     sem depender de unidades vh/dvh que falham na home screen. */
+  /* Altura medida por JS (window.innerHeight via --app-h) — fiável em PWA
+     standalone iOS, onde 100vh/100dvh/100% falham e deixam folga em baixo. */
   position: fixed;
   top: 0;
-  right: 0;
-  bottom: 0;
   left: 0;
+  right: 0;
+  height: 100dvh;             /* fallback */
+  height: var(--app-h, 100dvh);
   max-width: 480px;
   margin: 0 auto;
   overflow: hidden;
