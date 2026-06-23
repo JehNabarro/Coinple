@@ -119,3 +119,31 @@ DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION handle_new_user();
+
+-- ============================================================
+-- Migrações seguras (executar se a BD já existia antes dos eventos)
+-- Pode correr este bloco várias vezes sem problemas
+-- ============================================================
+
+-- Coluna payer_name adicionada após versão inicial
+ALTER TABLE expenses ADD COLUMN IF NOT EXISTS payer_name TEXT;
+
+-- Suporte a eventos: criar tabela (se não existe) e ligar à tabela expenses
+CREATE TABLE IF NOT EXISTS couple_events (
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  couple_id    UUID          NOT NULL REFERENCES couples(id) ON DELETE CASCADE,
+  name         TEXT          NOT NULL,
+  emoji        TEXT          NOT NULL DEFAULT '🎉',
+  total_budget DECIMAL(10,2) NOT NULL DEFAULT 0,
+  start_date   DATE          NOT NULL,
+  end_date     DATE          NOT NULL,
+  categories   JSONB         NOT NULL DEFAULT '[]',
+  created_at   TIMESTAMPTZ   NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_couple_events_couple ON couple_events(couple_id);
+ALTER TABLE couple_events ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "events_couple" ON couple_events;
+CREATE POLICY "events_couple" ON couple_events
+  FOR ALL USING (couple_id = my_couple_id());
+
+ALTER TABLE expenses ADD COLUMN IF NOT EXISTS event_id UUID REFERENCES couple_events(id) ON DELETE SET NULL;

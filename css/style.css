@@ -267,7 +267,7 @@ body.ready #loading-screen { display: none; }
 }
 
 .avatar.tone-gold { border: 2.5px solid #fad9cc; background: #D8A24B; }
-.avatar.tone-pink { border: 2.5px solid #fff; background: var(--rose); }
+.avatar.tone-pink { border: 2.5px solid #fad9cc; background: var(--rose); }
 
 .avatar-xs { width: 18px; height: 18px; font-size: 9px;  border-width: 1.5px !important; }
 .avatar-sm { width: 28px; height: 28px; font-size: 12px; }
@@ -323,7 +323,7 @@ body.ready #loading-screen { display: none; }
 /* ── Dashboard hero (paisagem + logo) ── */
 .dash-hero {
   position: relative;
-  height: 320px;
+  height: 282px;
   background-image: url('../assets/landscape-header.png');
   background-repeat: no-repeat;
   background-position: center;
@@ -350,7 +350,7 @@ body.ready #loading-screen { display: none; }
 /* ── Finance card (cartão principal) ── */
 .finance-card {
   position: relative;
-  margin: -64px 12px 0;
+  margin: -32px 12px 0;
   background: var(--card);
   border-radius: 28px;
   padding: 26px 18px 20px;

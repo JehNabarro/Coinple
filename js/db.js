@@ -95,32 +95,29 @@ async function loadCoupleData() {
 }
 
 /* ── Despesas ── */
-async function appendExpenseToDb(coupleId, expense, payerId) {
-  const fullPayload = {
-    id:          expense.id,
-    couple_id:   coupleId,
-    event_id:    expense.eventId || null,
-    amount:      expense.amount,
-    description: expense.description,
-    category:    expense.category,
-    payer_id:    payerId,
-    payer_name:  expense.payerName,
-    date:        expense.date,
-  };
 
-  let { error } = await _supabase.from('expenses').upsert(fullPayload);
+// Upsert com fallback progressivo para BDs com schema desatualizado:
+// Tentativa 1: payload completo (event_id + payer_name)
+// Tentativa 2: sem event_id (coluna pode não existir ou evento não sincronizado)
+// Tentativa 3: sem event_id nem payer_name (schema muito antigo)
+async function _upsertExpense(payload) {
+  let { error } = await _supabase.from('expenses').upsert(payload);
+  if (!error) return;
 
+  const { event_id: _ev, ...noEvent } = payload;
+  ({ error } = await _supabase.from('expenses').upsert(noEvent));
+  if (!error) return;
+
+  const { payer_name: _pn, ...minimal } = noEvent;
+  ({ error } = await _supabase.from('expenses').upsert(minimal));
   if (error) {
-    // event_id column may not exist yet — retry without it
-    const { event_id, ...basePayload } = fullPayload;
-    const retry = await _supabase.from('expenses').upsert(basePayload);
-    if (retry.error) throw retry.error;
+    console.error('Supabase expense upsert failed:', error);
+    throw error;
   }
 }
 
-async function updateExpenseInDb(expense, payerId, coupleId) {
-  // Use upsert so the row is inserted when it never synced on creation
-  const fullPayload = {
+async function appendExpenseToDb(coupleId, expense, payerId) {
+  await _upsertExpense({
     id:          expense.id,
     couple_id:   coupleId,
     event_id:    expense.eventId || null,
@@ -130,16 +127,21 @@ async function updateExpenseInDb(expense, payerId, coupleId) {
     payer_id:    payerId,
     payer_name:  expense.payerName,
     date:        expense.date,
-  };
+  });
+}
 
-  let { error } = await _supabase.from('expenses').upsert(fullPayload);
-
-  if (error) {
-    // event_id column may not exist yet — retry without it
-    const { event_id, ...basePayload } = fullPayload;
-    const retry = await _supabase.from('expenses').upsert(basePayload);
-    if (retry.error) throw retry.error;
-  }
+async function updateExpenseInDb(expense, payerId, coupleId) {
+  await _upsertExpense({
+    id:          expense.id,
+    couple_id:   coupleId,
+    event_id:    expense.eventId || null,
+    amount:      expense.amount,
+    description: expense.description,
+    category:    expense.category,
+    payer_id:    payerId,
+    payer_name:  expense.payerName,
+    date:        expense.date,
+  });
 }
 
 async function deleteExpenseFromDb(expenseId) {
