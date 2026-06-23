@@ -311,14 +311,15 @@ body.ready #loading-screen { display: none; }
 
 .screen.active { display: block; }
 
-/* Screens com cabeçalho próprio (sem barra de topo global) */
+/* Screens com cabeçalho próprio (sem barra de topo global).
+   O padding inferior limpa o tab-bar fixo (altura nominal + safe-area). */
 #screen-add, #screen-history, #screen-budgets, #screen-settings,
 #screen-events, #screen-event-form {
-  padding: calc(20px + var(--sat)) 16px 28px;
+  padding: calc(20px + var(--sat)) 16px calc(28px + var(--tab-h) + var(--sab));
 }
 
 #screen-dashboard {
-  padding: 0 0 28px;
+  padding: 0 0 calc(28px + var(--tab-h) + var(--sab));
 }
 
 /* ── Dashboard hero (paisagem + logo) ── */
@@ -559,15 +560,20 @@ body.ready #loading-screen { display: none; }
 
 /* ── Bottom tab bar ── */
 .tab-bar {
-  height: calc(var(--tab-h) + var(--sab));
+  /* Fixa ao fundo REAL do viewport (como o exemplo), com a barra centrada.
+     12px de respiro + safe-area do home indicator no padding inferior. */
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  max-width: 480px;
+  margin: 0 auto;
   background: var(--tab-bg);
   border-top: 1px solid rgba(60, 17, 29, 0.06);
   box-shadow: 0 -4px 20px rgba(108, 42, 58, 0.10);
   display: flex;
   align-items: flex-start;
-  padding: 10px 4px var(--sab);
-  flex-shrink: 0;
-  position: relative;
+  padding: 10px 4px calc(12px + var(--sab));
   z-index: 10;
 }
 
