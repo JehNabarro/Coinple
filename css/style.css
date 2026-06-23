@@ -770,6 +770,85 @@ body.ready #loading-screen { display: none; }
 }
 .cat-pill.selected { border-color: var(--rose); background: var(--pink-lt); color: var(--pink-dark); font-weight: 600; }
 
+/* Expense scope tab switcher (Mês / Evento) */
+.expense-scope-tabs {
+  display: flex;
+  background: var(--bg-elev);
+  border-radius: 12px;
+  padding: 4px;
+  gap: 4px;
+  border: 1px solid var(--border);
+}
+.scope-tab {
+  flex: 1;
+  padding: 9px 10px;
+  border-radius: 9px;
+  border: none;
+  background: transparent;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  -webkit-tap-highlight-color: transparent;
+}
+.scope-tab.active {
+  background: var(--bg-card);
+  color: var(--rose);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.14);
+}
+
+/* Category grid in add-expense / edit-expense */
+.cat-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.cat-grid-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 6px;
+  border-radius: 12px;
+  border: 2px solid transparent;
+  background: var(--bg-elev);
+  cursor: pointer;
+  gap: 5px;
+  transition: all 0.12s;
+  font-family: inherit;
+  min-height: 68px;
+  -webkit-tap-highlight-color: transparent;
+}
+.cat-grid-emoji { font-size: 22px; line-height: 1; }
+.cat-grid-name  { font-size: 11px; font-weight: 500; color: var(--text-muted); text-align: center; line-height: 1.2; }
+.cat-grid-item.selected { border-color: var(--rose); background: var(--pink-lt); }
+.cat-grid-item.selected .cat-grid-name { color: var(--rose); font-weight: 700; }
+.cat-grid-item:active { transform: scale(0.93); }
+
+/* Past events month sub-label */
+.events-month-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: capitalize;
+  padding: 6px 0 4px;
+  letter-spacing: 0.3px;
+}
+
+/* Novo Evento button at bottom of events list */
+.btn-new-event-bottom {
+  display: block;
+  width: 100%;
+  margin-top: 18px;
+}
+
 /* ── Buttons ── */
 .btn {
   display: block;

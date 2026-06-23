@@ -96,7 +96,12 @@ function currentMonthKey() {
 }
 
 function totalAllocated() {
-  return state.categories.reduce((s, c) => s + (c.budget || 0), 0);
+  const catTotal = state.categories.reduce((s, c) => s + (c.budget || 0), 0);
+  const mk = currentMonthKey();
+  const eventTotal = (state.events || [])
+    .filter(ev => ev.startDate.slice(0, 7) <= mk && ev.endDate.slice(0, 7) >= mk)
+    .reduce((s, ev) => s + (ev.totalBudget || 0), 0);
+  return catTotal + eventTotal;
 }
 
 function totalSpentThisMonth(mk) {
@@ -607,6 +612,7 @@ function renderRecentExpenses(mk) {
 let addFormState = {
   payerEmail: null,
   selectedCategory: null,
+  scope: 'month',
   receiptBase64: null,
   receiptMediaType: null,
 };
@@ -615,6 +621,7 @@ function resetAddForm() {
   addFormState = {
     payerEmail: state.user?.email || state.partners[0]?.email || null,
     selectedCategory: null,
+    scope: getActiveEvent() ? 'event' : 'month',
     receiptBase64: null,
     receiptMediaType: null,
   };
@@ -646,23 +653,37 @@ function renderPersonButtons() {
 }
 
 function renderCategoryPills() {
-  const container = document.getElementById('category-pills');
+  const scopeTabsEl = document.getElementById('expense-scope-tabs');
+  const container   = document.getElementById('category-pills');
   const activeEvent = getActiveEvent();
-  const cats = activeEvent ? (activeEvent.categories || []) : state.categories;
-  if (activeEvent) {
-    container.innerHTML = `<div style="font-size:11px;font-weight:700;color:var(--rose);margin-bottom:6px;width:100%">Categorias de ${activeEvent.emoji} ${activeEvent.name}</div>` +
-      cats.map(cat => `
-        <button class="cat-pill ${addFormState.selectedCategory === cat.id ? 'selected' : ''}"
-                onclick="selectCategory('${cat.id}')">
-          ${cat.emoji} ${cat.name}
-        </button>`).join('');
+
+  if (activeEvent && scopeTabsEl) {
+    scopeTabsEl.style.display = 'flex';
+    scopeTabsEl.innerHTML = `
+      <button class="scope-tab ${addFormState.scope === 'month' ? 'active' : ''}"
+              onclick="selectExpenseScope('month')">📅 Mês</button>
+      <button class="scope-tab ${addFormState.scope === 'event' ? 'active' : ''}"
+              onclick="selectExpenseScope('event')">${activeEvent.emoji} ${activeEvent.name}</button>`;
   } else {
-    container.innerHTML = cats.map(cat => `
-      <button class="cat-pill ${addFormState.selectedCategory === cat.id ? 'selected' : ''}"
-              onclick="selectCategory('${cat.id}')">
-        ${cat.emoji} ${cat.name}
-      </button>`).join('');
+    if (scopeTabsEl) scopeTabsEl.style.display = 'none';
+    addFormState.scope = 'month';
   }
+
+  const useEvent = activeEvent && addFormState.scope === 'event';
+  const cats = useEvent ? (activeEvent.categories || []) : state.categories;
+
+  container.innerHTML = `<div class="cat-grid">${cats.map(cat => `
+    <button class="cat-grid-item ${addFormState.selectedCategory === cat.id ? 'selected' : ''}"
+            onclick="selectCategory('${cat.id}')">
+      <span class="cat-grid-emoji">${cat.emoji}</span>
+      <span class="cat-grid-name">${cat.name}</span>
+    </button>`).join('')}</div>`;
+}
+
+function selectExpenseScope(scope) {
+  addFormState.scope = scope;
+  addFormState.selectedCategory = null;
+  renderCategoryPills();
 }
 
 function selectPerson(email) {
@@ -747,9 +768,9 @@ function submitExpense() {
   const form = readExpenseForm();
   if (!form) return;
 
-  // O orçamento pode ficar negativo — não bloqueamos despesas que excedem o total.
   const activeEvent = getActiveEvent();
   const payer = getPartner(addFormState.payerEmail);
+  const tagEvent = activeEvent && addFormState.scope === 'event';
   const expense = {
     id:          generateId(),
     amount:      form.amount,
@@ -759,7 +780,7 @@ function submitExpense() {
     payerName:   payer?.name || '',
     date:        form.date,
     createdAt:   Date.now(),
-    ...(activeEvent ? { eventId: activeEvent.id } : {}),
+    ...(tagEvent ? { eventId: activeEvent.id } : {}),
   };
 
   state.expenses.push(expense);
@@ -889,6 +910,7 @@ function editExpense(id) {
   showScreen('add');
   addFormState.payerEmail       = expense.payerEmail;
   addFormState.selectedCategory = expense.category;
+  addFormState.scope            = expense.eventId ? 'event' : 'month';
 
   document.getElementById('expense-amount').value = expense.amount.toFixed(2);
   document.getElementById('expense-desc').value   = expense.description;
@@ -901,7 +923,8 @@ function editExpense(id) {
   btn.onclick = () => {
     const form = readExpenseForm();
     if (!form) return;
-    // O orçamento pode ficar negativo — não bloqueamos despesas que excedem o total.
+    const activeEvent = getActiveEvent();
+    const tagEvent    = activeEvent && addFormState.scope === 'event';
     const payer = getPartner(addFormState.payerEmail);
     expense.amount      = form.amount;
     expense.description = form.desc || getCategory(addFormState.selectedCategory).name;
@@ -909,6 +932,7 @@ function editExpense(id) {
     expense.payerEmail  = addFormState.payerEmail;
     expense.payerName   = payer?.name || '';
     expense.date        = form.date;
+    expense.eventId     = tagEvent ? activeEvent.id : undefined;
     saveState();
     if (!state.demoMode && state.coupleId) {
       updateExpenseInDb(expense, payer?.id || null)
@@ -984,12 +1008,14 @@ const EVENT_EMOJIS = [
 
 function renderEventsScreen() {
   const events = state.events || [];
-  const today = todayISO();
+  const today  = todayISO();
   const active   = events.filter(ev => ev.startDate <= today && ev.endDate >= today);
   const upcoming = events.filter(ev => ev.startDate > today).sort((a, b) => a.startDate.localeCompare(b.startDate));
   const past     = events.filter(ev => ev.endDate < today).sort((a, b) => b.endDate.localeCompare(a.endDate));
 
   const container = document.getElementById('events-list-content');
+
+  const newEventBtn = `<button class="btn btn-primary btn-new-event-bottom" onclick="openEventForm()">+ Novo Evento</button>`;
 
   if (!events.length) {
     container.innerHTML = `
@@ -997,6 +1023,7 @@ function renderEventsScreen() {
         <div class="empty-state-icon">🎉</div>
         <h3>Sem eventos</h3>
         <p>Cria um evento para gerir um orçamento especial — viagem, festa, aniversário…</p>
+        ${newEventBtn}
       </div>`;
     return;
   }
@@ -1017,11 +1044,29 @@ function renderEventsScreen() {
       </div>`;
   };
 
+  // Group past events by month (most recent first)
+  const pastByMonth = {};
+  past.forEach(ev => {
+    const mk = ev.endDate.slice(0, 7);
+    if (!pastByMonth[mk]) pastByMonth[mk] = [];
+    pastByMonth[mk].push(ev);
+  });
+  const pastMonthKeys = Object.keys(pastByMonth).sort().reverse();
+
   let html = '';
   if (active.length)   html += `<div class="events-section-label">Ativo agora</div>` + active.map(eventCard).join('');
   if (upcoming.length) html += `<div class="events-section-label">Próximos</div>` + upcoming.map(eventCard).join('');
-  if (past.length)     html += `<div class="events-section-label">Passados</div>` + past.map(eventCard).join('');
+  if (pastMonthKeys.length) {
+    html += `<div class="events-section-label">Passados</div>`;
+    pastMonthKeys.forEach(mk => {
+      const [y, m] = mk.split('-');
+      const label  = new Date(+y, +m - 1, 1).toLocaleString('pt-PT', { month: 'long', year: 'numeric' });
+      html += `<div class="events-month-label">${label}</div>`;
+      html += pastByMonth[mk].map(eventCard).join('');
+    });
+  }
 
+  html += newEventBtn;
   container.innerHTML = html;
 }
 
