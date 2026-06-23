@@ -105,7 +105,10 @@ function totalAllocated() {
   const mk = currentMonthKey();
   const eventTotal = (state.events || [])
     .filter(ev => ev.startDate.slice(0, 7) <= mk && ev.endDate.slice(0, 7) >= mk)
-    .reduce((s, ev) => s + (ev.totalBudget || 0), 0);
+    .reduce((s, ev) => {
+      // For past events, count actual spent — budget is frozen and no longer editable
+      return s + (getEventStatus(ev) === 'past' ? spentOnEvent(ev.id) : (ev.totalBudget || 0));
+    }, 0);
   return catTotal + eventTotal;
 }
 
@@ -252,7 +255,7 @@ function showScreen(id) {
 
   if (id === 'dashboard')  renderDashboard();
   if (id === 'add')        resetAddForm();
-  if (id === 'history')    renderHistory();
+  if (id === 'history')    { reportTab = 'dashboard'; renderHistory(); }
   if (id === 'budgets')    renderCatBudgetList();
   if (id === 'events')     renderEventsScreen();
   if (id === 'event-form') renderEventFormScreen();
@@ -578,9 +581,37 @@ function renderCategoryCards(mk) {
       </div>`;
   };
 
+  // Upcoming events (starting after today)
+  const today = todayISO();
+  const upcomingEvents = (state.events || [])
+    .filter(ev => ev.startDate > today)
+    .sort((a, b) => a.startDate.localeCompare(b.startDate))
+    .slice(0, 4);
+
+  let upcomingHtml = '';
+  if (upcomingEvents.length) {
+    const eventCards = upcomingEvents.map(ev => {
+      const daysUntil = Math.max(1, Math.ceil((new Date(ev.startDate) - new Date()) / 86400000));
+      const label = ev.name.length > 8 ? ev.name.slice(0, 7) + '…' : ev.name;
+      return `
+        <div class="cat-card small" style="background:color-mix(in srgb,#C28E1B 16%,#fff)"
+             onclick="openEventDetail('${ev.id}')" title="${ev.name}">
+          <div class="cat-icon-wrap">${ev.emoji}</div>
+          <div class="cat-avail" style="color:var(--gold-dark);font-size:12px">${label}</div>
+          <div class="cat-avail-label">em ${daysUntil}d</div>
+        </div>`;
+    }).join('');
+    upcomingHtml = `
+      <div class="upcoming-events-section">
+        <div class="upcoming-events-label">Próximos eventos</div>
+        <div class="cat-row-small">${eventCards}</div>
+      </div>`;
+  }
+
   grid.innerHTML = `
     <div class="cat-row-big">${big.map(c => card(c, true)).join('')}</div>
-    <div class="cat-row-small">${small.map(c => card(c, false)).join('')}</div>`;
+    <div class="cat-row-small">${small.map(c => card(c, false)).join('')}</div>
+    ${upcomingHtml}`;
 }
 
 function openAddWithCategory(catId) {
@@ -810,6 +841,20 @@ function submitExpense() {
 
 /* ── History ── */
 let historyFilters = { categories: [], people: [], events: [] }; // empty = all
+let reportTab = 'dashboard'; // 'dashboard' | 'expenses'
+
+function switchReportTab(tab) {
+  reportTab = tab;
+  document.querySelectorAll('.report-tab').forEach(el => {
+    el.classList.toggle('active', el.dataset.tab === tab);
+  });
+  const filterBtn = document.getElementById('history-filter-btn');
+  if (filterBtn) filterBtn.style.visibility = tab === 'expenses' ? '' : 'hidden';
+  const filterTags = document.getElementById('history-active-filter-tags');
+  if (filterTags) filterTags.style.display = tab === 'expenses' ? '' : 'none';
+  document.getElementById('history-chart').style.display = tab === 'dashboard' ? '' : 'none';
+  document.getElementById('history-list').style.display  = tab === 'expenses'  ? '' : 'none';
+}
 
 function filterHistoryByCat(catId) {
   historyFilters.categories = [catId];
@@ -876,6 +921,9 @@ function openHistoryFilter() {
 
 function renderHistory() {
   _updateFilterBadge();
+
+  // Apply tab visibility
+  switchReportTab(reportTab);
 
   // Active filter tags
   const tagsEl = document.getElementById('history-active-filter-tags');
@@ -1317,13 +1365,32 @@ function openEventForm(eventId = null) {
 
 function renderEventFormScreen() {
   const ev = eventFormState.editingId ? (state.events || []).find(e => e.id === eventFormState.editingId) : null;
+  const isPast = ev ? getEventStatus(ev) === 'past' : false;
 
   document.getElementById('event-form-screen-title').textContent = ev ? 'Editar Evento' : 'Novo Evento';
   document.getElementById('event-name').value   = ev?.name      || '';
-  document.getElementById('event-budget').value = eventFormState.totalBudget || '';
   document.getElementById('event-start').value  = ev?.startDate || todayISO();
   document.getElementById('event-end').value    = ev?.endDate   || '';
   document.getElementById('btn-save-event').textContent = ev ? 'Guardar' : 'Criar Evento';
+
+  const budgetInput = document.getElementById('event-budget');
+  if (budgetInput) {
+    budgetInput.value    = eventFormState.totalBudget || '';
+    budgetInput.disabled = isPast;
+    budgetInput.title    = isPast ? 'Orçamento bloqueado — evento já passou' : '';
+    budgetInput.style.opacity = isPast ? '0.55' : '';
+  }
+
+  // Show past notice
+  const noticeId = 'event-past-notice';
+  document.getElementById(noticeId)?.remove();
+  if (isPast) {
+    const notice = document.createElement('div');
+    notice.id = noticeId;
+    notice.style.cssText = 'font-size:12px;color:var(--text-muted);background:var(--bg-elev);border:1px solid var(--border);border-radius:10px;padding:8px 12px;margin-bottom:10px';
+    notice.textContent = '⏳ Evento passado — o orçamento não pode ser alterado. Conta o que foi gasto.';
+    budgetInput?.closest('.form-group')?.after(notice);
+  }
 
   const emojiBtn = document.getElementById('event-emoji-btn');
   if (emojiBtn) emojiBtn.textContent = eventFormState.selectedEmoji || '🎉';
@@ -1500,7 +1567,10 @@ function saveEvent() {
   if (eventFormState.editingId) {
     const idx = state.events.findIndex(e => e.id === eventFormState.editingId);
     if (idx >= 0) {
-      state.events[idx] = { ...state.events[idx], name, emoji, totalBudget, startDate, endDate, categories: validCats };
+      const existing = state.events[idx];
+      // Past events: preserve the original budget — it cannot be changed
+      const finalBudget = getEventStatus(existing) === 'past' ? existing.totalBudget : totalBudget;
+      state.events[idx] = { ...existing, name, emoji, totalBudget: finalBudget, startDate, endDate, categories: validCats };
       savedId = state.events[idx].id;
     }
     showToast('Evento atualizado! 🎉');
@@ -1658,42 +1728,67 @@ function renderCatBudgetList() {
     renderCatBudgetList();
   });
 
-  // Eventos do mês — editáveis (budget reflecte no evento)
+  // Eventos: separar ativos/futuros (editáveis) dos passados (só leitura)
   const mk = currentMonthKey();
-  const monthEvents = (state.events || []).filter(ev =>
+  const today = todayISO();
+  const monthEvents   = (state.events || []).filter(ev =>
     ev.startDate.slice(0, 7) <= mk && ev.endDate.slice(0, 7) >= mk
   );
-  const upcomingEvents = (state.events || []).filter(ev => ev.startDate > todayISO());
+  const upcomingEvents = (state.events || []).filter(ev => ev.startDate > today);
 
-  const allRelevant = [...new Map([...monthEvents, ...upcomingEvents].map(e => [e.id, e])).values()];
+  const editableSet = [...new Map(
+    [...monthEvents.filter(ev => getEventStatus(ev) !== 'past'), ...upcomingEvents]
+      .map(e => [e.id, e])
+  ).values()];
+  const pastSet = monthEvents.filter(ev => getEventStatus(ev) === 'past');
+
+  const allRelevant = [...editableSet, ...pastSet];
 
   if (allRelevant.length) {
+    const renderEventRow = (ev) => {
+      const spent  = spentOnEvent(ev.id);
+      const status = getEventStatus(ev);
+      const isPast = status === 'past';
+      const pct    = ev.totalBudget ? Math.min((spent / ev.totalBudget) * 100, 100) : 0;
+      const cls    = spent > ev.totalBudget ? 'progress-red' : spent / (ev.totalBudget || 1) > 0.75 ? 'progress-pink' : 'progress-gold';
+
+      return `
+        <div class="cat-edit-item" style="flex-direction:column;align-items:stretch;gap:6px${isPast ? ';opacity:0.75' : ''}">
+          <div style="display:flex;align-items:center;gap:10px">
+            <span class="cat-edit-emoji" style="cursor:pointer" onclick="openEventDetail('${ev.id}')">${ev.emoji}</span>
+            <span class="cat-edit-name" style="flex:1;cursor:pointer" onclick="openEventDetail('${ev.id}')">${ev.name}</span>
+            ${isPast
+              ? `<span class="event-past-spent">${formatCurrency(spent)}</span>
+                 <span class="past-badge">passado</span>`
+              : `<input class="cat-edit-budget" type="number" min="0" step="10"
+                        value="${ev.totalBudget || 0}"
+                        oninput="updateEventBudgetInBudgets('${ev.id}', this.value)" />`}
+          </div>
+          ${!isPast && status !== 'upcoming' ? `
+          <div class="progress-bar">
+            <div class="progress-fill ${cls}" style="width:${pct}%"></div>
+          </div>
+          <div style="font-size:11px;color:var(--text-muted);text-align:right">${formatCurrency(spent)} gastos</div>` : ''}
+          ${isPast ? `
+          <div class="progress-bar">
+            <div class="progress-fill ${cls}" style="width:${pct}%"></div>
+          </div>
+          <div style="font-size:11px;color:var(--text-muted);text-align:right">gasto real · orçamento era ${formatCurrency(ev.totalBudget || 0)}</div>` : ''}
+        </div>`;
+    };
+
     list.innerHTML += `
       <div style="margin-top:18px;margin-bottom:8px;font-size:12px;font-weight:700;
                   color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px">
         Eventos
       </div>
-      ${allRelevant.map(ev => {
-        const spent = spentOnEvent(ev.id);
-        const pct   = ev.totalBudget ? Math.min((spent / ev.totalBudget) * 100, 100) : 0;
-        const cls   = spent > ev.totalBudget ? 'progress-red' : spent / (ev.totalBudget || 1) > 0.75 ? 'progress-pink' : 'progress-gold';
-        const status = getEventStatus(ev);
-        return `
-          <div class="cat-edit-item" style="flex-direction:column;align-items:stretch;gap:6px">
-            <div style="display:flex;align-items:center;gap:10px">
-              <span class="cat-edit-emoji" style="cursor:pointer" onclick="openEventDetail('${ev.id}')">${ev.emoji}</span>
-              <span class="cat-edit-name" style="flex:1;cursor:pointer" onclick="openEventDetail('${ev.id}')">${ev.name}</span>
-              <input class="cat-edit-budget" type="number" min="0" step="10"
-                     value="${ev.totalBudget || 0}"
-                     oninput="updateEventBudgetInBudgets('${ev.id}', this.value)" />
-            </div>
-            ${status !== 'upcoming' ? `
-            <div class="progress-bar">
-              <div class="progress-fill ${cls}" style="width:${pct}%"></div>
-            </div>
-            <div style="font-size:11px;color:var(--text-muted);text-align:right">${formatCurrency(spent)} gastos</div>` : ''}
-          </div>`;
-      }).join('')}`;
+      ${editableSet.map(renderEventRow).join('')}
+      ${pastSet.length ? `
+        <div style="margin-top:10px;margin-bottom:4px;font-size:11px;font-weight:700;
+                    color:var(--text-muted);text-transform:uppercase;letter-spacing:0.6px">
+          Passados (este mês)
+        </div>
+        ${pastSet.map(renderEventRow).join('')}` : ''}`;
   }
 }
 

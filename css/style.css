@@ -326,7 +326,7 @@ body.ready #loading-screen { display: none; }
   height: 282px;
   background-image: url('../assets/landscape-header.png');
   background-repeat: no-repeat;
-  background-position: center;
+  background-position: top;
   background-size: cover;
 }
 
@@ -350,7 +350,7 @@ body.ready #loading-screen { display: none; }
 /* ── Finance card (cartão principal) ── */
 .finance-card {
   position: relative;
-  margin: -32px 12px 0;
+  margin: -64px 12px 0;
   background: var(--card);
   border-radius: 28px;
   padding: 26px 18px 20px;
@@ -589,6 +589,7 @@ body.ready #loading-screen { display: none; }
 }
 
 .tab-btn svg, .tab-btn img { width: 26px; height: 26px; }
+#tab-dashboard img { width: 30px; height: 30px; }
 .tab-btn svg { stroke: var(--brand-dark); }
 
 .tab-btn.active { color: var(--rose); opacity: 1; }
@@ -1574,6 +1575,68 @@ input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; }
 .chart-legend-values b {
   color: var(--text);
   font-weight: 600;
+}
+
+/* ── Report Tabs (history screen) ── */
+.report-tabs {
+  display: flex;
+  background: var(--bg-elev);
+  border-radius: 12px;
+  padding: 4px;
+  gap: 4px;
+  border: 1px solid var(--border);
+  margin-bottom: 14px;
+}
+.report-tab {
+  flex: 1;
+  padding: 9px 10px;
+  border-radius: 9px;
+  border: none;
+  background: transparent;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s;
+  text-align: center;
+  -webkit-tap-highlight-color: transparent;
+}
+.report-tab.active {
+  background: var(--bg-card);
+  color: var(--rose);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.14);
+}
+
+/* ── Upcoming events in dashboard categories grid ── */
+.upcoming-events-section { margin-top: 10px; }
+.upcoming-events-label {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  margin-bottom: 6px;
+}
+
+/* ── Past event row in budgets (read-only) ── */
+.event-past-spent {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-muted);
+  min-width: 90px;
+  text-align: right;
+  padding-right: 2px;
+}
+.past-badge {
+  font-size: 10px;
+  font-weight: 700;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  border-radius: 6px;
+  padding: 2px 6px;
+  white-space: nowrap;
 }
 
 /* ── Safe area for iOS ── */
