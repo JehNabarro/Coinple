@@ -780,7 +780,7 @@ body.ready #loading-screen {
   box-shadow: 0 -4px 20px rgba(108, 42, 58, 0.10);
   display: flex;
   align-items: flex-start;
-  padding: 10px 4px calc(12px + var(--sab));
+  padding: 10px 4px 16px;
   z-index: 10;
 }
 
@@ -809,8 +809,8 @@ body.ready #loading-screen {
 }
 
 #tab-dashboard img {
-  width: 30px;
-  height: 30px;
+  width: 32px;
+  height: 26px;
 }
 
 .tab-btn svg {
