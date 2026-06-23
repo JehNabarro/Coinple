@@ -951,7 +951,7 @@ function editExpense(id) {
     expense.eventId     = tagEvent ? activeEvent.id : undefined;
     saveState();
     if (!state.demoMode && state.coupleId) {
-      updateExpenseInDb(expense, payer?.id || null)
+      updateExpenseInDb(expense, payer?.id || null, state.coupleId)
         .catch(err => showToast(`Aviso: não sincronizou (${err.message})`));
     }
     showToast('Despesa atualizada! 💛');

@@ -108,18 +108,21 @@ async function appendExpenseToDb(coupleId, expense, payerId) {
     date:        expense.date,
   };
 
-  let { error } = await _supabase.from('expenses').insert(fullPayload);
+  let { error } = await _supabase.from('expenses').upsert(fullPayload);
 
   if (error) {
     // event_id column may not exist yet — retry without it
     const { event_id, ...basePayload } = fullPayload;
-    const retry = await _supabase.from('expenses').insert(basePayload);
+    const retry = await _supabase.from('expenses').upsert(basePayload);
     if (retry.error) throw retry.error;
   }
 }
 
-async function updateExpenseInDb(expense, payerId) {
+async function updateExpenseInDb(expense, payerId, coupleId) {
+  // Use upsert so the row is inserted when it never synced on creation
   const fullPayload = {
+    id:          expense.id,
+    couple_id:   coupleId,
     event_id:    expense.eventId || null,
     amount:      expense.amount,
     description: expense.description,
@@ -129,12 +132,12 @@ async function updateExpenseInDb(expense, payerId) {
     date:        expense.date,
   };
 
-  let { error } = await _supabase.from('expenses').update(fullPayload).eq('id', expense.id);
+  let { error } = await _supabase.from('expenses').upsert(fullPayload);
 
   if (error) {
     // event_id column may not exist yet — retry without it
     const { event_id, ...basePayload } = fullPayload;
-    const retry = await _supabase.from('expenses').update(basePayload).eq('id', expense.id);
+    const retry = await _supabase.from('expenses').upsert(basePayload);
     if (retry.error) throw retry.error;
   }
 }
