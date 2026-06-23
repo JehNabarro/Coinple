@@ -154,7 +154,7 @@ function expensesForMonth(monthKey) {
 
 function spentByCategory(catId, monthKey) {
   return expensesForMonth(monthKey)
-    .filter(e => e.category === catId)
+    .filter(e => e.category === catId && !e.eventId)
     .reduce((s, e) => s + (e.amount || 0), 0);
 }
 
@@ -928,6 +928,8 @@ function editExpense(id) {
   addFormState.selectedCategory = expense.category;
   addFormState.scope            = expense.eventId ? 'event' : 'month';
 
+  const originalEventId = expense.eventId; // preservar para eventos passados
+
   document.getElementById('expense-amount').value = expense.amount.toFixed(2);
   document.getElementById('expense-desc').value   = expense.description;
   document.getElementById('expense-date').value   = expense.date;
@@ -940,7 +942,6 @@ function editExpense(id) {
     const form = readExpenseForm();
     if (!form) return;
     const activeEvent = getActiveEvent();
-    const tagEvent    = activeEvent && addFormState.scope === 'event';
     const payer = getPartner(addFormState.payerEmail);
     expense.amount      = form.amount;
     expense.description = form.desc || getCategory(addFormState.selectedCategory).name;
@@ -948,7 +949,10 @@ function editExpense(id) {
     expense.payerEmail  = addFormState.payerEmail;
     expense.payerName   = payer?.name || '';
     expense.date        = form.date;
-    expense.eventId     = tagEvent ? activeEvent.id : undefined;
+    // Se scope=event: usa evento ativo (se existir) ou preserva o id original (evento passado)
+    expense.eventId = addFormState.scope === 'event'
+      ? (activeEvent?.id || originalEventId)
+      : undefined;
     saveState();
     if (!state.demoMode && state.coupleId) {
       updateExpenseInDb(expense, payer?.id || null, state.coupleId)
@@ -1162,9 +1166,9 @@ function openEventForm(eventId = null) {
   eventFormState.editingId    = eventId;
   eventFormState.selectedEmoji = ev?.emoji || '🎉';
   eventFormState.totalBudget   = ev?.totalBudget || 0;
-  eventFormState.categories    = JSON.parse(JSON.stringify(
-    ev ? (ev.categories || []) : DEFAULT_CATEGORIES
-  ));
+  eventFormState.categories    = ev
+    ? JSON.parse(JSON.stringify(ev.categories || []))
+    : DEFAULT_CATEGORIES.map(c => ({ ...c, id: 'ev-cat-' + generateId() }));
   showScreen('event-form');
 }
 
