@@ -95,6 +95,11 @@ function currentMonthKey() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 }
 
+function eventEmojiFor(expense) {
+  if (!expense.eventId) return '';
+  return (state.events || []).find(ev => ev.id === expense.eventId)?.emoji || '';
+}
+
 function totalAllocated() {
   const catTotal = state.categories.reduce((s, c) => s + (c.budget || 0), 0);
   const mk = currentMonthKey();
@@ -592,14 +597,17 @@ function renderRecentExpenses(mk) {
 
   list.innerHTML = recent.map(e => {
     const cat = getCategory(e.category);
+    const evEmoji = eventEmojiFor(e);
     return `
       <div class="expense-item" onclick="openExpenseDetail('${e.id}')">
         <div class="expense-icon" style="background:${cat.color}22">${cat.emoji}</div>
         <div class="expense-info">
-          <div class="expense-desc">${e.description || cat.name}</div>
+          <div class="expense-desc">
+            <span>${e.description || cat.name}</span>
+            ${evEmoji ? `<span class="expense-event-tag">${evEmoji}</span>` : ''}
+          </div>
           <div class="expense-meta">
             ${avatarHtml(e.payerEmail, 'avatar-xs')}
-            <span class="expense-person">${payerLabel(e)}</span>
             <span>${formatDate(e.date)}${formatTime(e.createdAt) ? ' · ' + formatTime(e.createdAt) : ''}</span>
           </div>
         </div>
@@ -828,14 +836,17 @@ function renderHistory() {
       <div class="month-label">${monthLabel(mk)}</div>
       ${exps.map(e => {
         const cat = getCategory(e.category);
+        const evEmoji = eventEmojiFor(e);
         return `
           <div class="history-item" onclick="openExpenseDetail('${e.id}')">
             <div class="expense-icon" style="background:${cat.color}22">${cat.emoji}</div>
             <div class="history-info">
-              <div class="history-desc">${e.description}</div>
+              <div class="history-desc">
+                <span>${e.description}</span>
+                ${evEmoji ? `<span class="expense-event-tag">${evEmoji}</span>` : ''}
+              </div>
               <div class="history-meta">
                 ${avatarHtml(e.payerEmail, 'avatar-xs')}
-                <span class="expense-person">${payerLabel(e)}</span>
                 <span class="history-cat">${cat.name}</span>
               </div>
             </div>
