@@ -512,24 +512,29 @@ function renderEventCategoryCards(ev) {
   if (!cats.length) { grid.innerHTML = ''; return; }
 
   const card = (cat, isBig) => {
-    const spent = spentOnEventCategory(ev.id, cat.id);
-    const tint = `color-mix(in srgb, ${cat.color || '#EC4899'} 16%, #fff)`;
-    const bar = `<div class="cat-progress"><div class="cat-progress-fill" style="width:0%"></div></div>`;
+    const spent  = spentOnEventCategory(ev.id, cat.id);
+    const budget = cat.budget || 0;
+    const avail  = budget - spent;
+    const pct    = budget ? Math.min((spent / budget) * 100, 100) : 0;
+    const tint   = `color-mix(in srgb, ${cat.color || '#EC4899'} 16%, #fff)`;
+    const bar    = `<div class="cat-progress"><div class="cat-progress-fill" style="width:${pct}%"></div></div>`;
     if (isBig) {
       return `
-        <div class="cat-card big" style="background:${tint}" title="${cat.name}">
+        <div class="cat-card big" style="background:${tint}"
+             onclick="openAddWithCategory('${cat.id}')" title="${cat.name}">
           <div class="cat-icon-wrap">${cat.emoji}</div>
-          <div class="cat-avail">${formatCurrency(spent)}</div>
-          <div class="cat-avail-label">gasto</div>
+          <div class="cat-avail ${avail < 0 ? 'neg' : ''}">${formatCurrency(avail)}</div>
+          <div class="cat-avail-label">disponível</div>
           ${bar}
-          <div class="cat-budget-line">${cat.name}</div>
+          <div class="cat-budget-line">de ${formatCurrency(budget)}</div>
         </div>`;
     }
     return `
-      <div class="cat-card small" style="background:${tint}" title="${cat.name}">
+      <div class="cat-card small" style="background:${tint}"
+           onclick="openAddWithCategory('${cat.id}')" title="${cat.name}">
         <div class="cat-icon-wrap">${cat.emoji}</div>
         ${bar}
-        <div class="cat-avail">${formatCurrency(spent)}</div>
+        <div class="cat-avail ${avail < 0 ? 'neg' : ''}">${formatCurrency(avail)}</div>
       </div>`;
   };
 

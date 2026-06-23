@@ -96,7 +96,7 @@ async function loadCoupleData() {
 
 /* ── Despesas ── */
 async function appendExpenseToDb(coupleId, expense, payerId) {
-  const { error } = await _supabase.from('expenses').insert({
+  const fullPayload = {
     id:          expense.id,
     couple_id:   coupleId,
     event_id:    expense.eventId || null,
@@ -106,12 +106,20 @@ async function appendExpenseToDb(coupleId, expense, payerId) {
     payer_id:    payerId,
     payer_name:  expense.payerName,
     date:        expense.date,
-  });
-  if (error) throw error;
+  };
+
+  let { error } = await _supabase.from('expenses').insert(fullPayload);
+
+  if (error) {
+    // event_id column may not exist yet — retry without it
+    const { event_id, ...basePayload } = fullPayload;
+    const retry = await _supabase.from('expenses').insert(basePayload);
+    if (retry.error) throw retry.error;
+  }
 }
 
 async function updateExpenseInDb(expense, payerId) {
-  const { error } = await _supabase.from('expenses').update({
+  const fullPayload = {
     event_id:    expense.eventId || null,
     amount:      expense.amount,
     description: expense.description,
@@ -119,8 +127,16 @@ async function updateExpenseInDb(expense, payerId) {
     payer_id:    payerId,
     payer_name:  expense.payerName,
     date:        expense.date,
-  }).eq('id', expense.id);
-  if (error) throw error;
+  };
+
+  let { error } = await _supabase.from('expenses').update(fullPayload).eq('id', expense.id);
+
+  if (error) {
+    // event_id column may not exist yet — retry without it
+    const { event_id, ...basePayload } = fullPayload;
+    const retry = await _supabase.from('expenses').update(basePayload).eq('id', expense.id);
+    if (retry.error) throw retry.error;
+  }
 }
 
 async function deleteExpenseFromDb(expenseId) {
