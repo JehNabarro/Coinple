@@ -42,7 +42,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&display=swap" />
-  <link rel="stylesheet" href="css/style.css?v=16" />
+  <link rel="stylesheet" href="css/style.css?v=17" />
 </head>
 <body class="logged-out">
 
@@ -216,8 +216,15 @@
 
     <!-- History / Relatório -->
     <section id="screen-history" class="screen">
-      <div class="screen-title">Relatório</div>
-      <div class="filter-bar" id="filter-bar"></div>
+      <div class="history-top-row">
+        <div class="screen-title" style="margin:0">Relatório</div>
+        <button class="filter-fab-btn" onclick="openHistoryFilter()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="11" y1="18" x2="13" y2="18"/></svg>
+          Filtrar <span id="filter-count-badge" class="filter-badge" style="display:none">0</span>
+        </button>
+      </div>
+      <div id="history-active-filter-tags"></div>
+      <div id="history-chart"></div>
       <div id="history-list"></div>
     </section>
 
@@ -416,6 +423,31 @@
   </div>
 </div>
 
+<!-- Confirm Modal -->
+<div class="modal-backdrop" id="modal-confirm">
+  <div class="modal" style="max-width:340px">
+    <div class="modal-handle"></div>
+    <p id="confirm-message" style="text-align:center;font-size:15px;padding:8px 0 16px;color:var(--text)">Tens a certeza?</p>
+    <div class="btn-row">
+      <button class="btn btn-secondary" style="flex:1" data-close-modal="modal-confirm">Cancelar</button>
+      <button class="btn btn-danger" id="confirm-ok" style="flex:1">Eliminar</button>
+    </div>
+  </div>
+</div>
+
+<!-- History Filter Sheet -->
+<div class="modal-backdrop" id="modal-history-filter">
+  <div class="modal" style="max-height:80vh;overflow-y:auto">
+    <div class="modal-handle"></div>
+    <h3 style="text-align:center;font-size:16px;font-weight:700;margin-bottom:16px">Filtros</h3>
+    <div id="filter-sheet-content"></div>
+    <div class="btn-row" style="margin-top:16px">
+      <button class="btn btn-secondary" style="flex:1" onclick="clearHistoryFilters()">Limpar</button>
+      <button class="btn btn-primary" style="flex:1" onclick="closeModal('modal-history-filter');renderHistory()">Aplicar</button>
+    </div>
+  </div>
+</div>
+
 <!-- Hidden photo upload input (set per partner via JS) -->
 <input type="file" id="partner-photo-file" accept="image/*" style="display:none" />
 
@@ -424,10 +456,10 @@
 
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js" defer></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
-<script src="js/config.js?v=13"></script>
+<script src="js/config.js?v=14"></script>
 <script src="js/api.js?v=7" defer></script>
 <script src="js/auth.js?v=7" defer></script>
 <script src="js/db.js?v=10" defer></script>
-<script src="js/app.js?v=14" defer></script>
+<script src="js/app.js?v=15" defer></script>
 </body>
 </html>

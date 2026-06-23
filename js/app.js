@@ -809,19 +809,92 @@ function submitExpense() {
 }
 
 /* ── History ── */
-let historyFilters = { category: 'all', person: 'all' };
+let historyFilters = { categories: [], people: [], events: [] }; // empty = all
 
 function filterHistoryByCat(catId) {
-  historyFilters.category = catId;
+  historyFilters.categories = [catId];
   showScreen('history');
 }
 
+function clearHistoryFilters() {
+  historyFilters = { categories: [], people: [], events: [] };
+  closeModal('modal-history-filter');
+  renderHistory();
+}
+
+function toggleFilterItem(key, value) {
+  const arr = historyFilters[key];
+  const idx = arr.indexOf(value);
+  if (idx >= 0) arr.splice(idx, 1); else arr.push(value);
+  document.querySelectorAll(`[data-fkey="${key}"][data-fval="${value}"]`)
+    .forEach(el => el.classList.toggle('on', historyFilters[key].includes(value)));
+  _updateFilterBadge();
+}
+
+function _updateFilterBadge() {
+  const count = historyFilters.categories.length + historyFilters.people.length + historyFilters.events.length;
+  const badge = document.getElementById('filter-count-badge');
+  if (badge) { badge.style.display = count ? 'inline-flex' : 'none'; badge.textContent = count; }
+}
+
+function openHistoryFilter() {
+  const el = document.getElementById('filter-sheet-content');
+  if (!el) return;
+
+  const mk = currentMonthKey();
+  const monthEvents = (state.events || []).filter(ev =>
+    ev.startDate.slice(0,7) <= mk && ev.endDate.slice(0,7) >= mk
+  );
+
+  const chip = (key, val, label) => {
+    const on = historyFilters[key].includes(val) ? 'on' : '';
+    return `<button class="filter-chip-sel ${on}" data-fkey="${key}" data-fval="${val}"
+             onclick="toggleFilterItem('${key}','${val}')">${label}</button>`;
+  };
+
+  let html = '';
+
+  if (state.partners.length) {
+    html += `<div class="filter-section-title">Pessoas</div><div class="filter-chip-row">`;
+    state.partners.forEach(p => { html += chip('people', p.email, avatarHtml(p.email,'avatar-xs') + ' ' + firstName(p.name)); });
+    html += `</div>`;
+  }
+
+  html += `<div class="filter-section-title">Categorias</div><div class="filter-chip-row">`;
+  state.categories.forEach(c => { html += chip('categories', c.id, c.emoji + ' ' + c.name); });
+  html += `</div>`;
+
+  if (monthEvents.length || (state.events||[]).length) {
+    html += `<div class="filter-section-title">Eventos</div><div class="filter-chip-row">`;
+    (state.events||[]).forEach(ev => { html += chip('events', ev.id, ev.emoji + ' ' + ev.name); });
+    html += `</div>`;
+  }
+
+  el.innerHTML = html;
+  openModal('modal-history-filter');
+}
+
 function renderHistory() {
-  renderFilterBar();
+  _updateFilterBadge();
+
+  // Active filter tags
+  const tagsEl = document.getElementById('history-active-filter-tags');
+  if (tagsEl) {
+    const tags = [
+      ...historyFilters.categories.map(id => { const c = state.categories.find(x=>x.id===id); return c ? `<span class="active-filter-tag">${c.emoji} ${c.name}</span>` : ''; }),
+      ...historyFilters.people.map(email => { const p = state.partners.find(x=>x.email===email); return p ? `<span class="active-filter-tag">${firstName(p.name)}</span>` : ''; }),
+      ...historyFilters.events.map(id => { const ev = (state.events||[]).find(x=>x.id===id); return ev ? `<span class="active-filter-tag">${ev.emoji} ${ev.name}</span>` : ''; }),
+    ].filter(Boolean);
+    tagsEl.innerHTML = tags.join('');
+  }
+
+  // Chart — always current month
+  renderHistoryChart(currentMonthKey());
 
   let filtered = [...state.expenses];
-  if (historyFilters.category !== 'all') filtered = filtered.filter(e => e.category === historyFilters.category);
-  if (historyFilters.person   !== 'all') filtered = filtered.filter(e => e.payerEmail === historyFilters.person);
+  if (historyFilters.categories.length) filtered = filtered.filter(e => historyFilters.categories.includes(e.category));
+  if (historyFilters.people.length)     filtered = filtered.filter(e => historyFilters.people.includes(e.payerEmail));
+  if (historyFilters.events.length)     filtered = filtered.filter(e => historyFilters.events.includes(e.eventId));
 
   const container = document.getElementById('history-list');
 
@@ -864,25 +937,88 @@ function renderHistory() {
     </div>`).join('');
 }
 
-function renderFilterBar() {
-  const bar = document.getElementById('filter-bar');
-  const personChips = [
-    `<button class="filter-chip ${historyFilters.person === 'all' ? 'active' : ''}" onclick="setHistoryFilter('person','all')">Todos</button>`,
-    ...state.partners.map(p => `
-      <button class="filter-chip ${historyFilters.person === p.email ? 'active' : ''}"
-              onclick="setHistoryFilter('person','${p.email}')">${firstName(p.name)}</button>`),
-  ].join('');
-  const allCatChip = `<button class="filter-chip ${historyFilters.category === 'all' ? 'active' : ''}" onclick="setHistoryFilter('category','all')">Todas</button>`;
-  const catChips = state.categories.map(c => `
-    <button class="filter-chip ${historyFilters.category === c.id ? 'active' : ''}" onclick="setHistoryFilter('category','${c.id}')">${c.emoji} ${c.name}</button>
-  `).join('');
+function renderHistoryChart(mk) {
+  const chartEl = document.getElementById('history-chart');
+  if (!chartEl) return;
 
-  bar.innerHTML = personChips + allCatChip + catChips;
-}
+  const monthEvents = (state.events || []).filter(ev =>
+    ev.startDate.slice(0,7) <= mk && ev.endDate.slice(0,7) >= mk
+  );
 
-function setHistoryFilter(key, value) {
-  historyFilters[key] = value;
-  renderHistory();
+  const items = [
+    ...state.categories.map(cat => ({
+      name: cat.name, emoji: cat.emoji, color: cat.color || '#EC4899',
+      budget: cat.budget || 0,
+      spent: spentByCategory(cat.id, mk),
+    })),
+    ...monthEvents.map(ev => ({
+      name: ev.name, emoji: ev.emoji, color: '#C28E1B',
+      budget: ev.totalBudget || 0,
+      spent: spentOnEvent(ev.id),
+    })),
+  ].filter(i => i.budget > 0);
+
+  const totalBudget = state.totalBudget || totalAllocated();
+  const totalSpent  = expensesForMonth(mk).reduce((s,e) => s + (e.amount||0), 0);
+  const balance     = totalBudget - totalSpent;
+
+  if (!items.length || !totalBudget) { chartEl.innerHTML = ''; return; }
+
+  const totalAlloc = items.reduce((s,i) => s + i.budget, 0) || 1;
+  const CX = 120, CY = 120, SIZE = 240;
+  const R_B = 85, W_B = 24, R_S = 58, W_S = 18;
+  const circB = 2 * Math.PI * R_B, circS = 2 * Math.PI * R_S;
+  const GAP_B = circB * 0.012, GAP_S = circS * 0.012;
+
+  let offB = 0, offS = 0;
+  let budgetArcs = '', spentArcs = '';
+
+  items.forEach(item => {
+    const frac = item.budget / totalAlloc;
+    const lenB = frac * circB;
+    const drawB = Math.max(0, lenB - GAP_B);
+    budgetArcs += `<circle cx="${CX}" cy="${CY}" r="${R_B}" fill="none" stroke="${item.color}"
+      stroke-width="${W_B}" stroke-dasharray="${drawB.toFixed(2)} ${circB.toFixed(2)}"
+      stroke-dashoffset="${(circB - offB).toFixed(2)}" transform="rotate(-90 ${CX} ${CY})"/>`;
+    offB += lenB;
+
+    const lenS = frac * circS;
+    const spentFrac = item.budget ? Math.min(item.spent / item.budget, 1) : 0;
+    const drawS = Math.max(0, lenS * spentFrac - GAP_S * 0.5);
+    spentArcs += `<circle cx="${CX}" cy="${CY}" r="${R_S}" fill="none" stroke="${item.color}"
+      stroke-width="${W_S}" stroke-opacity="0.38"
+      stroke-dasharray="${drawS.toFixed(2)} ${circS.toFixed(2)}"
+      stroke-dashoffset="${(circS - offS).toFixed(2)}" transform="rotate(-90 ${CX} ${CY})"/>`;
+    offS += lenS;
+  });
+
+  const balColor  = balance >= 0 ? '#10B981' : '#EF4444';
+  const balLabel  = balance >= 0 ? 'disponível' : 'excedido';
+  const balAmt    = (balance < 0 ? '-' : '') + formatCurrency(Math.abs(balance));
+  const monthTxt  = monthLabel(mk);
+
+  const legend = items.map(i => `
+    <div class="chart-legend-item">
+      <span class="chart-legend-dot" style="background:${i.color}"></span>
+      <span class="chart-legend-name">${i.emoji} ${i.name}</span>
+      <span class="chart-legend-values">${formatCurrency(i.spent)} / <b>${formatCurrency(i.budget)}</b></span>
+    </div>`).join('');
+
+  chartEl.innerHTML = `
+    <div class="history-chart-card">
+      <svg width="${SIZE}" height="${SIZE}" viewBox="0 0 ${SIZE} ${SIZE}" style="display:block;margin:0 auto">
+        <circle cx="${CX}" cy="${CY}" r="${R_B}" fill="none" stroke="var(--bg-elev)" stroke-width="${W_B}"/>
+        <circle cx="${CX}" cy="${CY}" r="${R_S}" fill="none" stroke="var(--bg-elev)" stroke-width="${W_S}"/>
+        ${budgetArcs}${spentArcs}
+        <text x="${CX}" y="${CY - 12}" text-anchor="middle" font-size="14" font-weight="700"
+              fill="${balColor}" font-family="Geist,sans-serif">${balAmt}</text>
+        <text x="${CX}" y="${CY + 6}" text-anchor="middle" font-size="11" font-weight="600"
+              fill="${balColor}" font-family="Geist,sans-serif">${balLabel}</text>
+        <text x="${CX}" y="${CY + 22}" text-anchor="middle" font-size="10"
+              fill="var(--text-muted)" font-family="Geist,sans-serif">${monthTxt}</text>
+      </svg>
+      <div class="chart-legend">${legend}</div>
+    </div>`;
 }
 
 /* ── Expense Detail Modal ── */
@@ -905,17 +1041,24 @@ function openExpenseDetail(id) {
   openModal('modal-expense-detail');
 }
 
+function confirmAction(message, onConfirm) {
+  document.getElementById('confirm-message').textContent = message;
+  document.getElementById('confirm-ok').onclick = () => { closeModal('modal-confirm'); onConfirm(); };
+  openModal('modal-confirm');
+}
+
 function deleteExpense(id) {
-  if (!confirm('Eliminar esta despesa?')) return;
-  state.expenses = state.expenses.filter(e => e.id !== id);
-  saveState();
-  if (!state.demoMode && state.coupleId) {
-    deleteExpenseFromDb(id).catch(err => showToast(`Aviso: não sincronizou (${err.message})`));
-  }
-  closeModal('modal-expense-detail');
-  showToast('Despesa eliminada');
-  if (activeScreen === 'dashboard') renderDashboard();
-  if (activeScreen === 'history')   renderHistory();
+  confirmAction('Eliminar esta despesa?', () => {
+    state.expenses = state.expenses.filter(e => e.id !== id);
+    saveState();
+    if (!state.demoMode && state.coupleId) {
+      deleteExpenseFromDb(id).catch(err => showToast(`Aviso: não sincronizou (${err.message})`));
+    }
+    closeModal('modal-expense-detail');
+    showToast('Despesa eliminada');
+    if (activeScreen === 'dashboard') renderDashboard();
+    if (activeScreen === 'history')   renderHistory();
+  });
 }
 
 function editExpense(id) {
@@ -1327,9 +1470,11 @@ function renderEventBudgetAllocStatus() {
 }
 
 function removeEventCategory(idx) {
-  eventFormState.categories.splice(idx, 1);
-  renderEventCategoryEditor();
-  renderEventBudgetAllocStatus();
+  confirmAction('Remover esta categoria do evento?', () => {
+    eventFormState.categories.splice(idx, 1);
+    renderEventCategoryEditor();
+    renderEventBudgetAllocStatus();
+  });
 }
 
 function addEventCategory() {
@@ -1377,18 +1522,17 @@ function saveEvent() {
 }
 
 function deleteEvent(eventId) {
-  if (!confirm('Eliminar este evento?')) return;
-  state.events = (state.events || []).filter(e => e.id !== eventId);
-  saveState();
-
-  if (!state.demoMode && state.coupleId) {
-    deleteEventFromDb(eventId).catch(err => showToast(`Aviso: não sincronizou (${err.message})`));
-  }
-
-  closeModal('modal-event-detail');
-  renderEventsScreen();
-  renderDashboard();
-  showToast('Evento eliminado');
+  confirmAction('Eliminar este evento?', () => {
+    state.events = (state.events || []).filter(e => e.id !== eventId);
+    saveState();
+    if (!state.demoMode && state.coupleId) {
+      deleteEventFromDb(eventId).catch(err => showToast(`Aviso: não sincronizou (${err.message})`));
+    }
+    closeModal('modal-event-detail');
+    renderEventsScreen();
+    renderDashboard();
+    showToast('Evento eliminado');
+  });
 }
 
 function openEventDetail(eventId) {
@@ -1514,37 +1658,49 @@ function renderCatBudgetList() {
     renderCatBudgetList();
   });
 
-  // Show events overlapping the current month
+  // Eventos do mês — editáveis (budget reflecte no evento)
   const mk = currentMonthKey();
   const monthEvents = (state.events || []).filter(ev =>
     ev.startDate.slice(0, 7) <= mk && ev.endDate.slice(0, 7) >= mk
   );
-  if (monthEvents.length) {
+  const upcomingEvents = (state.events || []).filter(ev => ev.startDate > todayISO());
+
+  const allRelevant = [...new Map([...monthEvents, ...upcomingEvents].map(e => [e.id, e])).values()];
+
+  if (allRelevant.length) {
     list.innerHTML += `
       <div style="margin-top:18px;margin-bottom:8px;font-size:12px;font-weight:700;
                   color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px">
-        Eventos do mês
+        Eventos
       </div>
-      ${monthEvents.map(ev => {
+      ${allRelevant.map(ev => {
         const spent = spentOnEvent(ev.id);
         const pct   = ev.totalBudget ? Math.min((spent / ev.totalBudget) * 100, 100) : 0;
         const cls   = spent > ev.totalBudget ? 'progress-red' : spent / (ev.totalBudget || 1) > 0.75 ? 'progress-pink' : 'progress-gold';
+        const status = getEventStatus(ev);
         return `
-          <div class="cat-edit-item" onclick="openEventDetail('${ev.id}')"
-               style="cursor:pointer;flex-direction:column;align-items:stretch;gap:6px">
+          <div class="cat-edit-item" style="flex-direction:column;align-items:stretch;gap:6px">
             <div style="display:flex;align-items:center;gap:10px">
-              <span class="cat-edit-emoji">${ev.emoji}</span>
-              <span class="cat-edit-name">${ev.name}</span>
-              <span style="font-size:13px;font-weight:600;color:var(--rose);margin-left:auto">
-                ${formatCurrency(spent)} / ${formatCurrency(ev.totalBudget)}
-              </span>
+              <span class="cat-edit-emoji" style="cursor:pointer" onclick="openEventDetail('${ev.id}')">${ev.emoji}</span>
+              <span class="cat-edit-name" style="flex:1;cursor:pointer" onclick="openEventDetail('${ev.id}')">${ev.name}</span>
+              <input class="cat-edit-budget" type="number" min="0" step="10"
+                     value="${ev.totalBudget || 0}"
+                     oninput="updateEventBudgetInBudgets('${ev.id}', this.value)" />
             </div>
+            ${status !== 'upcoming' ? `
             <div class="progress-bar">
               <div class="progress-fill ${cls}" style="width:${pct}%"></div>
             </div>
+            <div style="font-size:11px;color:var(--text-muted);text-align:right">${formatCurrency(spent)} gastos</div>` : ''}
           </div>`;
       }).join('')}`;
   }
+}
+
+function updateEventBudgetInBudgets(evId, value) {
+  const ev = (state.events || []).find(e => e.id === evId);
+  if (ev) ev.totalBudget = parseFloat(value) || 0;
+  renderBudgetAllocStatus();
 }
 
 function renderBudgetAllocStatus() {
@@ -1608,9 +1764,11 @@ function addBudgetCategory() {
 }
 
 function removeBudgetCategory(catId) {
-  state.categories = state.categories.filter(c => c.id !== catId);
-  saveState();
-  renderCatBudgetList();
+  confirmAction('Remover esta categoria?', () => {
+    state.categories = state.categories.filter(c => c.id !== catId);
+    saveState();
+    renderCatBudgetList();
+  });
 }
 
 function saveSettings() {
@@ -1648,6 +1806,11 @@ function saveBudgets() {
   if (!state.demoMode && state.coupleId) {
     saveBudgetsToDb(state.coupleId, state.categories, state.totalBudget)
       .catch(err => showToast(`Aviso: não sincronizou (${err.message})`));
+    // Sync event budgets that were edited in this screen
+    const mk = currentMonthKey();
+    (state.events || [])
+      .filter(ev => ev.startDate.slice(0,7) <= mk && ev.endDate.slice(0,7) >= mk || ev.startDate > todayISO())
+      .forEach(ev => saveEventToDb(state.coupleId, ev).catch(() => {}));
   }
 
   showToast('Orçamentos guardados! 💰');
