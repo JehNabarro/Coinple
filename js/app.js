@@ -1,15 +1,3 @@
-/* ── Altura real do viewport ──
-   Em PWA standalone no iOS, 100vh/100dvh/100% podem não corresponder à área
-   visível, deixando a barra inferior a "flutuar". Medimos com window.innerHeight
-   e expomos em --app-h, usado pelo #app. */
-function setAppHeight() {
-  document.documentElement.style.setProperty('--app-h', window.innerHeight + 'px');
-}
-setAppHeight();
-window.addEventListener('resize', setAppHeight);
-window.addEventListener('orientationchange', () => setTimeout(setAppHeight, 250));
-window.addEventListener('pageshow', setAppHeight);
-
 /* ── State ── */
 // Ordem alinhada ao design: 3 cartões grandes (em cima) + 4 pequenos (em baixo)
 const DEFAULT_CATEGORIES = [

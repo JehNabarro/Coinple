@@ -279,14 +279,15 @@ body.ready #loading-screen { display: none; }
 #app {
   display: flex;
   flex-direction: column;
-  /* Altura medida por JS (window.innerHeight via --app-h) — fiável em PWA
-     standalone iOS, onde 100vh/100dvh/100% falham e deixam folga em baixo. */
+  /* Fixa o app entre o topo e o fundo REAIS do viewport (top/bottom: 0).
+     Em PWA standalone iOS isto cobre o ecrã inteiro de forma fiável, sem a
+     folga em baixo que aparecia ao medir window.innerHeight nas versões novas
+     do iOS. A barra inferior cola-se ao fundo; o safe-area fica no padding. */
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
-  height: 100dvh;             /* fallback */
-  height: var(--app-h, 100dvh);
+  bottom: 0;
   max-width: 480px;
   margin: 0 auto;
   overflow: hidden;
