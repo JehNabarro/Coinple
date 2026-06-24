@@ -21,12 +21,21 @@ CREATE TABLE IF NOT EXISTS profiles (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- 3. Orçamentos por categoria por casal
+-- 3. Orçamentos por categoria por casal POR MÊS (month_key 'YYYY-MM')
 CREATE TABLE IF NOT EXISTS budgets (
   couple_id UUID          NOT NULL REFERENCES couples(id) ON DELETE CASCADE,
   category  TEXT          NOT NULL,
   amount    DECIMAL(10,2) NOT NULL DEFAULT 0,
-  PRIMARY KEY (couple_id, category)
+  month_key TEXT          NOT NULL DEFAULT to_char(now(), 'YYYY-MM'),
+  PRIMARY KEY (couple_id, category, month_key)
+);
+
+-- 3b. Orçamento total por casal POR MÊS (substitui couples.total_budget)
+CREATE TABLE IF NOT EXISTS monthly_budgets (
+  couple_id    UUID          NOT NULL REFERENCES couples(id) ON DELETE CASCADE,
+  month_key    TEXT          NOT NULL,
+  total_budget DECIMAL(10,2) NOT NULL DEFAULT 0,
+  PRIMARY KEY (couple_id, month_key)
 );
 
 -- 4. Eventos do casal
@@ -60,11 +69,12 @@ CREATE TABLE IF NOT EXISTS expenses (
 -- ============================================================
 -- Row Level Security
 -- ============================================================
-ALTER TABLE profiles       ENABLE ROW LEVEL SECURITY;
-ALTER TABLE couples        ENABLE ROW LEVEL SECURITY;
-ALTER TABLE budgets        ENABLE ROW LEVEL SECURITY;
-ALTER TABLE couple_events  ENABLE ROW LEVEL SECURITY;
-ALTER TABLE expenses       ENABLE ROW LEVEL SECURITY;
+ALTER TABLE profiles        ENABLE ROW LEVEL SECURITY;
+ALTER TABLE couples         ENABLE ROW LEVEL SECURITY;
+ALTER TABLE budgets         ENABLE ROW LEVEL SECURITY;
+ALTER TABLE monthly_budgets ENABLE ROW LEVEL SECURITY;
+ALTER TABLE couple_events   ENABLE ROW LEVEL SECURITY;
+ALTER TABLE expenses        ENABLE ROW LEVEL SECURITY;
 
 -- Helper: devolve o couple_id do utilizador autenticado
 CREATE OR REPLACE FUNCTION my_couple_id()
@@ -85,6 +95,11 @@ CREATE POLICY "couples_member" ON couples
 -- Orçamentos: só o casal
 DROP POLICY IF EXISTS "budgets_couple" ON budgets;
 CREATE POLICY "budgets_couple" ON budgets
+  FOR ALL USING (couple_id = my_couple_id());
+
+-- Orçamentos totais mensais: só o casal
+DROP POLICY IF EXISTS "monthly_budgets_couple" ON monthly_budgets;
+CREATE POLICY "monthly_budgets_couple" ON monthly_budgets
   FOR ALL USING (couple_id = my_couple_id());
 
 -- Eventos: só o casal
@@ -147,3 +162,30 @@ CREATE POLICY "events_couple" ON couple_events
   FOR ALL USING (couple_id = my_couple_id());
 
 ALTER TABLE expenses ADD COLUMN IF NOT EXISTS event_id UUID REFERENCES couple_events(id) ON DELETE SET NULL;
+
+-- ── Orçamentos por mês ──────────────────────────────────────
+-- Adicionar month_key à tabela budgets e refazer a chave primária
+ALTER TABLE budgets ADD COLUMN IF NOT EXISTS month_key TEXT NOT NULL DEFAULT to_char(now(), 'YYYY-MM');
+ALTER TABLE budgets DROP CONSTRAINT IF EXISTS budgets_pkey;
+ALTER TABLE budgets ADD PRIMARY KEY (couple_id, category, month_key);
+
+-- Tabela do orçamento total por mês (substitui couples.total_budget)
+CREATE TABLE IF NOT EXISTS monthly_budgets (
+  couple_id    UUID          NOT NULL REFERENCES couples(id) ON DELETE CASCADE,
+  month_key    TEXT          NOT NULL,
+  total_budget DECIMAL(10,2) NOT NULL DEFAULT 0,
+  PRIMARY KEY (couple_id, month_key)
+);
+ALTER TABLE monthly_budgets ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "monthly_budgets_couple" ON monthly_budgets;
+CREATE POLICY "monthly_budgets_couple" ON monthly_budgets
+  FOR ALL USING (couple_id = my_couple_id());
+
+-- Migrar dados existentes: copiar couples.total_budget para o mês atual.
+-- As linhas antigas de budgets já ficam atribuídas ao mês atual via o DEFAULT
+-- da coluna month_key acima.
+INSERT INTO monthly_budgets (couple_id, month_key, total_budget)
+SELECT id, to_char(now(), 'YYYY-MM'), total_budget
+FROM couples
+WHERE total_budget > 0
+ON CONFLICT (couple_id, month_key) DO NOTHING;

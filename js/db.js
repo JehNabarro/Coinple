@@ -17,14 +17,25 @@ async function getCurrentProfile() {
 }
 
 /* ── Setup: criar casal ── */
-async function createCouple(categories, totalBudget) {
+async function createCouple(categories, monthKey, total, categoryBudgets) {
   const { data: couple, error } = await _supabase
-    .rpc('fn_create_couple', { p_total_budget: totalBudget || 0 });
+    .rpc('fn_create_couple', { p_total_budget: total || 0 });
   if (error) throw error;
+
+  // Orçamento total do mês atual
+  await _supabase.from('monthly_budgets').upsert(
+    { couple_id: couple.id, month_key: monthKey, total_budget: total || 0 },
+    { onConflict: 'couple_id,month_key' }
+  );
 
   if (categories.length) {
     const { error: budErr } = await _supabase.from('budgets').insert(
-      categories.map(c => ({ couple_id: couple.id, category: c.id, amount: c.budget || 0 }))
+      categories.map(c => ({
+        couple_id: couple.id,
+        category:  c.id,
+        month_key: monthKey,
+        amount:    (categoryBudgets && categoryBudgets[c.id]) || 0,
+      }))
     );
     if (budErr) throw budErr;
   }
@@ -42,14 +53,16 @@ async function joinCouple(inviteCode) {
 /* ── Carregar todos os dados do casal ── */
 async function loadCoupleData() {
   const profile = await getCurrentProfile();
-  if (!profile?.couple_id) return { expenses: [], partners: [], budgets: {}, totalBudget: 0, events: [] };
+  if (!profile?.couple_id) return { expenses: [], partners: [], monthlyBudgets: {}, legacyTotalBudget: 0, events: [] };
 
   const coupleId = profile.couple_id;
 
-  const [{ data: partnerRows }, { data: expenseRows }, { data: budgetRows }, eventResult] = await Promise.all([
+  const [{ data: partnerRows }, { data: expenseRows }, { data: budgetRows }, monthlyResult, eventResult] = await Promise.all([
     _supabase.from('profiles').select('id, name, email, photo_url').eq('couple_id', coupleId),
     _supabase.from('expenses').select('*').eq('couple_id', coupleId).order('date', { ascending: false }),
     _supabase.from('budgets').select('*').eq('couple_id', coupleId),
+    _supabase.from('monthly_budgets').select('*').eq('couple_id', coupleId)
+      .then(r => r).catch(() => ({ data: [] })),
     _supabase.from('couple_events').select('*').eq('couple_id', coupleId).order('start_date', { ascending: true })
       .then(r => r).catch(() => ({ data: [] })),
   ]);
@@ -75,10 +88,22 @@ async function loadCoupleData() {
     ...(r.event_id ? { eventId: r.event_id } : {}),
   }));
 
-  const budgets = {};
-  (budgetRows || []).forEach(r => { budgets[r.category] = parseFloat(r.amount); });
+  // Orçamentos por mês: { 'YYYY-MM': { total, categoryBudgets: { catId: amount } } }
+  const _now = new Date();
+  const _fallbackMk = `${_now.getFullYear()}-${String(_now.getMonth() + 1).padStart(2, '0')}`;
+  const monthlyBudgets = {};
+  const ensureMk = (mk) => (monthlyBudgets[mk] = monthlyBudgets[mk] || { total: 0, categoryBudgets: {} });
 
-  const totalBudget = parseFloat(profile.couples?.total_budget || 0);
+  (budgetRows || []).forEach(r => {
+    const mk = r.month_key || _fallbackMk;
+    ensureMk(mk).categoryBudgets[r.category] = parseFloat(r.amount) || 0;
+  });
+  (monthlyResult?.data || []).forEach(r => {
+    ensureMk(r.month_key).total = parseFloat(r.total_budget) || 0;
+  });
+
+  // total_budget legado (em couples) — só para migração se não houver linha mensal ainda
+  const legacyTotalBudget = parseFloat(profile.couples?.total_budget || 0);
 
   const events = ((eventResult?.data) || []).map(r => ({
     id:          r.id,
@@ -91,7 +116,7 @@ async function loadCoupleData() {
     createdAt:   new Date(r.created_at).getTime(),
   }));
 
-  return { expenses, partners, budgets, totalBudget, events };
+  return { expenses, partners, monthlyBudgets, legacyTotalBudget, events };
 }
 
 /* ── Despesas ── */
@@ -149,19 +174,26 @@ async function deleteExpenseFromDb(expenseId) {
   if (error) throw error;
 }
 
-/* ── Orçamentos ── */
-async function saveBudgetsToDb(coupleId, categories, totalBudget) {
-  const rows = categories.map(c => ({ couple_id: coupleId, category: c.id, amount: c.budget || 0 }));
+/* ── Orçamentos (por mês) ── */
+async function saveBudgetsToDb(coupleId, categories, monthKey, total, categoryBudgets) {
+  const rows = categories.map(c => ({
+    couple_id: coupleId,
+    category:  c.id,
+    month_key: monthKey,
+    amount:    (categoryBudgets && categoryBudgets[c.id]) || 0,
+  }));
   const { error: budErr } = await _supabase
     .from('budgets')
-    .upsert(rows, { onConflict: 'couple_id,category' });
+    .upsert(rows, { onConflict: 'couple_id,category,month_key' });
   if (budErr) throw budErr;
 
-  const { error: coupleErr } = await _supabase
-    .from('couples')
-    .update({ total_budget: totalBudget || 0 })
-    .eq('id', coupleId);
-  if (coupleErr) throw coupleErr;
+  const { error: totErr } = await _supabase
+    .from('monthly_budgets')
+    .upsert(
+      { couple_id: coupleId, month_key: monthKey, total_budget: total || 0 },
+      { onConflict: 'couple_id,month_key' }
+    );
+  if (totErr) throw totErr;
 }
 
 /* ── Perfil ── */
@@ -182,6 +214,10 @@ function subscribeToCouple(coupleId, onChange) {
     }, onChange)
     .on('postgres_changes', {
       event: '*', schema: 'public', table: 'budgets',
+      filter: `couple_id=eq.${coupleId}`,
+    }, onChange)
+    .on('postgres_changes', {
+      event: '*', schema: 'public', table: 'monthly_budgets',
       filter: `couple_id=eq.${coupleId}`,
     }, onChange)
     .on('postgres_changes', {

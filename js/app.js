@@ -19,7 +19,10 @@ let state = {
   expenses: [],               // { id, amount, description, category, payerEmail, payerName, date, createdAt, eventId? }
   events: [],                 // { id, name, emoji, totalBudget, startDate, endDate, categories, createdAt }
   settings: { apiKey: '' },
-  totalBudget: 0,             // orçamento total do mês
+  // Orçamentos por mês: { 'YYYY-MM': { total, categoryBudgets: { catId: valor } } }
+  // Cada mês tem o seu próprio total e a sua própria lista de orçamentos por categoria.
+  monthlyBudgets: {},
+  viewingMonth: null,         // mês selecionado no ecrã de orçamentos (null = mês real de hoje)
   theme: 'dark',
 };
 
@@ -37,14 +40,30 @@ function loadState() {
         expenses:   parsed.expenses   || [],
         events:     parsed.events     || [],
         settings:   { apiKey: '', ...(parsed.settings || {}) },
-        totalBudget: parsed.totalBudget || 0,
+        monthlyBudgets: parsed.monthlyBudgets || {},
+        viewingMonth:   null,
         theme:       parsed.theme       || 'dark',
         coupleId:    parsed.coupleId    || null,
         // compatibilidade: migra spreadsheetId → coupleId
         ...(parsed.spreadsheetId && !parsed.coupleId ? { spreadsheetId: undefined } : {}),
       };
+      // Migração de localStorage antigo: total/categorias globais → mês atual
+      migrateLegacyBudgets(parsed);
     }
   } catch (e) { /* usa defaults */ }
+}
+
+// Copia o orçamento global antigo (state.totalBudget + cat.budget) para o mês
+// atual, caso ainda não exista nenhum orçamento mensal guardado.
+function migrateLegacyBudgets(parsed) {
+  if (Object.keys(state.monthlyBudgets).length) return;
+  const legacyTotal = parsed?.totalBudget || 0;
+  const cats = parsed?.categories || state.categories;
+  const hasLegacy = legacyTotal > 0 || cats.some(c => (c.budget || 0) > 0);
+  if (!hasLegacy) return;
+  const categoryBudgets = {};
+  cats.forEach(c => { categoryBudgets[c.id] = c.budget || 0; });
+  state.monthlyBudgets[realMonthKey()] = { total: legacyTotal, categoryBudgets };
 }
 
 function saveState() {
@@ -78,9 +97,69 @@ function todayISO() {
   return new Date().toISOString().slice(0, 10);
 }
 
-function currentMonthKey() {
+// Mês real de hoje, independente do mês que está a ser visto no ecrã de orçamentos.
+function realMonthKey() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
+// Mês seguinte (em 'YYYY-MM') a partir de um month_key dado (ou do mês real).
+function addMonthKey(mk, n) {
+  const [y, m] = mk.split('-').map(Number);
+  const d = new Date(y, m - 1 + n, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
+function nextMonthKey() {
+  return addMonthKey(realMonthKey(), 1);
+}
+
+// Mês "ativo" para leitura. No ecrã de orçamentos pode ser o mês seguinte
+// (state.viewingMonth); em todo o resto cai no mês real de hoje.
+function currentMonthKey() {
+  return state.viewingMonth || realMonthKey();
+}
+
+// Só o mês atual e o mês seguinte são editáveis. Meses anteriores ficam
+// congelados; meses mais à frente ainda não existem no planeamento.
+function isMonthEditable(mk) {
+  return mk === realMonthKey() || mk === nextMonthKey();
+}
+
+// Devolve o objeto de orçamento de um mês, criando-o (semente) se necessário.
+function monthBudget(mk) {
+  if (!state.monthlyBudgets[mk]) {
+    // Semente: copia do mês existente mais recente anterior a mk. Se não houver
+    // nenhum, arranca com os orçamentos padrão das categorias.
+    const prior = Object.keys(state.monthlyBudgets).filter(k => k < mk).sort().pop();
+    const src = prior ? state.monthlyBudgets[prior] : null;
+    if (src) {
+      state.monthlyBudgets[mk] = { total: src.total, categoryBudgets: { ...src.categoryBudgets } };
+    } else {
+      const categoryBudgets = {};
+      state.categories.forEach(c => { categoryBudgets[c.id] = c.budget || 0; });
+      state.monthlyBudgets[mk] = {
+        total: state.categories.reduce((s, c) => s + (c.budget || 0), 0),
+        categoryBudgets,
+      };
+    }
+  }
+  return state.monthlyBudgets[mk];
+}
+
+// Orçamento de uma categoria nesse mês.
+function catBudget(catId, mk) {
+  return state.monthlyBudgets[mk]?.categoryBudgets?.[catId] || 0;
+}
+
+// Orçamento total definido para esse mês.
+function monthTotal(mk) {
+  return state.monthlyBudgets[mk]?.total || 0;
+}
+
+// Um evento pertence só ao mês em que começa (start_date).
+function eventsForMonth(mk) {
+  return (state.events || []).filter(ev => ev.startDate.slice(0, 7) === mk);
 }
 
 function eventEmojiFor(expense) {
@@ -88,13 +167,11 @@ function eventEmojiFor(expense) {
   return (state.events || []).find(ev => ev.id === expense.eventId)?.emoji || '';
 }
 
-function totalAllocated() {
-  const catTotal = state.categories.reduce((s, c) => s + (c.budget || 0), 0);
-  const mk = currentMonthKey();
-  const eventTotal = (state.events || [])
-    .filter(ev => ev.startDate.slice(0, 7) <= mk && ev.endDate.slice(0, 7) >= mk)
+function totalAllocated(mk) {
+  const catTotal = state.categories.reduce((s, c) => s + catBudget(c.id, mk), 0);
+  const eventTotal = eventsForMonth(mk)
     .reduce((s, ev) => {
-      // For past events, count actual spent — budget is frozen and no longer editable
+      // Eventos passados contam o gasto real — o orçamento está congelado.
       return s + (getEventStatus(ev) === 'past' ? spentOnEvent(ev.id) : (ev.totalBudget || 0));
     }, 0);
   return catTotal + eventTotal;
@@ -226,7 +303,10 @@ function showView(view) {
   document.body.classList.toggle('logged-out', view === 'login');
   document.body.classList.toggle('in-setup', view === 'setup');
   if (view === 'setup') renderSetup();
-  if (view === 'app') showScreen('dashboard');
+  if (view === 'app') {
+    monthBudget(realMonthKey()); // garante orçamentos do mês atual em memória
+    showScreen('dashboard');
+  }
 }
 
 /* ── Navigation ── */
@@ -240,6 +320,9 @@ function showScreen(id) {
   const tabId = id === 'event-form' ? 'events' : id;
   document.getElementById(`tab-${tabId}`)?.classList.add('active');
   activeScreen = id;
+
+  // O mês selecionado só vale no ecrã de orçamentos; o resto usa o mês real.
+  if (id !== 'budgets') state.viewingMonth = null;
 
   if (id === 'dashboard')  renderDashboard();
   if (id === 'add')        resetAddForm();
@@ -335,7 +418,20 @@ async function handleCreateSheet() {
   const btn = document.getElementById('btn-create-sheet');
   btn.disabled = true; btn.textContent = 'A criar… 🪄';
   try {
-    const couple = await createCouple(state.categories, state.totalBudget);
+    // Semente do mês atual: usa orçamentos mensais já definidos, senão os
+    // valores padrão das categorias.
+    const mk = realMonthKey();
+    let mb = state.monthlyBudgets[mk];
+    if (!mb) {
+      const categoryBudgets = {};
+      state.categories.forEach(c => { categoryBudgets[c.id] = c.budget || 0; });
+      mb = state.monthlyBudgets[mk] = {
+        total: state.categories.reduce((s, c) => s + (c.budget || 0), 0),
+        categoryBudgets,
+      };
+      saveState();
+    }
+    const couple = await createCouple(state.categories, mk, mb.total, mb.categoryBudgets);
     state.coupleId = couple.id;
     const profile = await getCurrentProfile();
     const code = profile?.couples?.invite_code || couple.invite_code;
@@ -383,14 +479,16 @@ async function syncFromSupabase({ quiet = false } = {}) {
   syncing = true;
   document.getElementById('btn-sync')?.classList.add('spinning');
   try {
-    const { expenses, partners, budgets, totalBudget, events } = await loadCoupleData();
+    const { expenses, partners, monthlyBudgets, legacyTotalBudget, events } = await loadCoupleData();
     state.expenses = expenses;
     state.partners = partners;
     state.events   = events;
-    if (totalBudget > 0) state.totalBudget = totalBudget;
-    state.categories.forEach(c => {
-      if (budgets[c.id] !== undefined) c.budget = budgets[c.id];
-    });
+    state.monthlyBudgets = monthlyBudgets || {};
+    // Migração: casal antigo sem orçamentos mensais mas com total_budget legado
+    // → copia o total legado para o mês atual.
+    if (!Object.keys(state.monthlyBudgets).length && legacyTotalBudget > 0) {
+      state.monthlyBudgets[realMonthKey()] = { total: legacyTotalBudget, categoryBudgets: {} };
+    }
     saveState();
     if (activeScreen === 'dashboard') renderDashboard();
     if (activeScreen === 'history')   renderHistory();
@@ -432,7 +530,7 @@ function renderDashboard() {
 function renderBudgetOverview(mk) {
   const el = document.getElementById('budget-overview');
   if (!el) return;
-  const total = state.totalBudget || totalAllocated();
+  const total = monthTotal(mk) || totalAllocated(mk);
   const spent = totalSpentThisMonth(mk);
   const remaining = total - spent;
   const pct = total ? Math.min((spent / total) * 100, 100) : 0;
@@ -544,7 +642,7 @@ function renderCategoryCards(mk) {
 
   const card = (cat, isBig) => {
     const spent  = spentByCategory(cat.id, mk);
-    const budget = cat.budget || 0;
+    const budget = catBudget(cat.id, mk);
     const avail  = budget - spent;
     const pct    = budget ? Math.min((spent / budget) * 100, 100) : 0;
     const tint   = `color-mix(in srgb, ${cat.color} 16%, #fff)`;
@@ -645,15 +743,20 @@ let addFormState = {
   payerEmail: null,
   selectedCategory: null,
   scope: 'month',
+  eventId: null,
   receiptBase64: null,
   receiptMediaType: null,
 };
 
 function resetAddForm() {
+  // Por defeito sugere o evento em curso (se houver), mas qualquer evento pode
+  // ser escolhido — a data da despesa é que decide a que mês ela pertence.
+  const active = getActiveEvent();
   addFormState = {
     payerEmail: state.user?.email || state.partners[0]?.email || null,
     selectedCategory: null,
-    scope: getActiveEvent() ? 'event' : 'month',
+    scope: active ? 'event' : 'month',
+    eventId: active?.id || null,
     receiptBase64: null,
     receiptMediaType: null,
   };
@@ -687,29 +790,57 @@ function renderPersonButtons() {
 function renderCategoryPills() {
   const scopeTabsEl = document.getElementById('expense-scope-tabs');
   const container   = document.getElementById('category-pills');
-  const activeEvent = getActiveEvent();
+  // Qualquer evento pode receber despesas — passados, atuais ou futuros.
+  const events = [...(state.events || [])].sort((a, b) => b.startDate.localeCompare(a.startDate));
 
-  if (activeEvent && scopeTabsEl) {
+  if (events.length && scopeTabsEl) {
     scopeTabsEl.style.display = 'flex';
     scopeTabsEl.innerHTML = `
       <button class="scope-tab ${addFormState.scope === 'month' ? 'active' : ''}"
               onclick="selectExpenseScope('month')">📅 Mês</button>
       <button class="scope-tab ${addFormState.scope === 'event' ? 'active' : ''}"
-              onclick="selectExpenseScope('event')">${activeEvent.emoji} ${activeEvent.name}</button>`;
+              onclick="selectExpenseScope('event')">🎉 Evento</button>`;
   } else {
     if (scopeTabsEl) scopeTabsEl.style.display = 'none';
     addFormState.scope = 'month';
   }
 
-  const useEvent = activeEvent && addFormState.scope === 'event';
-  const cats = useEvent ? (activeEvent.categories || []) : state.categories;
+  const useEvent = addFormState.scope === 'event' && events.length;
 
-  container.innerHTML = `<div class="cat-grid">${cats.map(cat => `
+  // No modo evento mostra um seletor de qual evento e usa as categorias dele.
+  let eventPickerHtml = '';
+  let activeEvent = null;
+  if (useEvent) {
+    if (!addFormState.eventId || !events.some(e => e.id === addFormState.eventId)) {
+      addFormState.eventId = events[0].id;
+    }
+    activeEvent = events.find(e => e.id === addFormState.eventId);
+    eventPickerHtml = `
+      <select class="event-picker-select" onchange="selectExpenseEvent(this.value)"
+              style="width:100%;margin-bottom:12px;padding:10px;border-radius:12px;
+                     border:1.5px solid var(--gold);background:var(--bg-elev);color:var(--text);font-size:14px">
+        ${events.map(ev => {
+          const st = getEventStatus(ev);
+          const tag = st === 'past' ? ' · passado' : st === 'upcoming' ? ' · futuro' : ' · a decorrer';
+          return `<option value="${ev.id}" ${ev.id === addFormState.eventId ? 'selected' : ''}>${ev.emoji} ${ev.name}${tag}</option>`;
+        }).join('')}
+      </select>`;
+  }
+
+  const cats = useEvent ? (activeEvent?.categories || []) : state.categories;
+
+  container.innerHTML = eventPickerHtml + `<div class="cat-grid">${cats.map(cat => `
     <button class="cat-grid-item ${addFormState.selectedCategory === cat.id ? 'selected' : ''}"
             onclick="selectCategory('${cat.id}')">
       <span class="cat-grid-emoji">${cat.emoji}</span>
       <span class="cat-grid-name">${cat.name}</span>
     </button>`).join('')}</div>`;
+}
+
+function selectExpenseEvent(eventId) {
+  addFormState.eventId = eventId;
+  addFormState.selectedCategory = null;
+  renderCategoryPills();
 }
 
 function selectExpenseScope(scope) {
@@ -800,9 +931,10 @@ function submitExpense() {
   const form = readExpenseForm();
   if (!form) return;
 
-  const activeEvent = getActiveEvent();
   const payer = getPartner(addFormState.payerEmail);
-  const tagEvent = activeEvent && addFormState.scope === 'event';
+  // A despesa pode ser associada a qualquer evento; o mês a que pertence vem
+  // da data da despesa, não da data do evento.
+  const tagEvent = addFormState.scope === 'event' && addFormState.eventId;
   const expense = {
     id:          generateId(),
     amount:      form.amount,
@@ -812,7 +944,7 @@ function submitExpense() {
     payerName:   payer?.name || '',
     date:        form.date,
     createdAt:   Date.now(),
-    ...(tagEvent ? { eventId: activeEvent.id } : {}),
+    ...(tagEvent ? { eventId: addFormState.eventId } : {}),
   };
 
   state.expenses.push(expense);
@@ -977,14 +1109,12 @@ function renderHistoryChart(mk) {
   const chartEl = document.getElementById('history-chart');
   if (!chartEl) return;
 
-  const monthEvents = (state.events || []).filter(ev =>
-    ev.startDate.slice(0,7) <= mk && ev.endDate.slice(0,7) >= mk
-  );
+  const monthEvents = eventsForMonth(mk);
 
   const items = [
     ...state.categories.map(cat => ({
       name: cat.name, emoji: cat.emoji, color: cat.color || '#EC4899',
-      budget: cat.budget || 0,
+      budget: catBudget(cat.id, mk),
       spent: spentByCategory(cat.id, mk),
     })),
     ...monthEvents.map(ev => ({
@@ -994,7 +1124,7 @@ function renderHistoryChart(mk) {
     })),
   ].filter(i => i.budget > 0);
 
-  const totalBudget = state.totalBudget || totalAllocated();
+  const totalBudget = monthTotal(mk) || totalAllocated(mk);
   const totalSpent  = expensesForMonth(mk).reduce((s,e) => s + (e.amount||0), 0);
   const balance     = totalBudget - totalSpent;
 
@@ -1106,8 +1236,7 @@ function editExpense(id) {
   addFormState.payerEmail       = expense.payerEmail;
   addFormState.selectedCategory = expense.category;
   addFormState.scope            = expense.eventId ? 'event' : 'month';
-
-  const originalEventId = expense.eventId; // preservar para eventos passados
+  addFormState.eventId          = expense.eventId || null;
 
   document.getElementById('expense-amount').value = expense.amount.toFixed(2);
   document.getElementById('expense-desc').value   = expense.description;
@@ -1120,7 +1249,6 @@ function editExpense(id) {
   btn.onclick = () => {
     const form = readExpenseForm();
     if (!form) return;
-    const activeEvent = getActiveEvent();
     const payer = getPartner(addFormState.payerEmail);
     expense.amount      = form.amount;
     expense.description = form.desc || getCategory(addFormState.selectedCategory).name;
@@ -1128,10 +1256,8 @@ function editExpense(id) {
     expense.payerEmail  = addFormState.payerEmail;
     expense.payerName   = payer?.name || '';
     expense.date        = form.date;
-    // Se scope=event: usa evento ativo (se existir) ou preserva o id original (evento passado)
-    expense.eventId = addFormState.scope === 'event'
-      ? (activeEvent?.id || originalEventId)
-      : undefined;
+    // Associa ao evento escolhido (qualquer evento), independente da data de hoje.
+    expense.eventId = addFormState.scope === 'event' ? (addFormState.eventId || undefined) : undefined;
     saveState();
     if (!state.demoMode && state.coupleId) {
       updateExpenseInDb(expense, payer?.id || null, state.coupleId)
@@ -1678,13 +1804,35 @@ const DRAG_HANDLE_SVG = `<svg viewBox="0 0 24 24" width="16" height="16" fill="c
   <circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/>
 </svg>`;
 
+function selectBudgetMonth(mk) {
+  state.viewingMonth = mk;
+  monthBudget(mk); // garante que o mês existe (semente a partir do anterior)
+  renderCatBudgetList();
+}
+
 function renderCatBudgetList() {
-  const total = state.totalBudget || 0;
+  // Por omissão mostra o mês real; o seletor permite saltar para o mês seguinte.
+  if (!state.viewingMonth) state.viewingMonth = realMonthKey();
+  const mk = currentMonthKey();
+  monthBudget(mk); // garante a estrutura do mês
+
+  const total = monthTotal(mk);
   const list = document.getElementById('cat-budget-list');
+
+  const curMk = realMonthKey();
+  const nxtMk = nextMonthKey();
+  const monthTab = (key, label) => `
+    <button class="scope-tab ${mk === key ? 'active' : ''}"
+            onclick="selectBudgetMonth('${key}')" type="button">${label}</button>`;
+
   list.innerHTML = `
+    <div class="budget-month-tabs" style="display:flex;gap:8px;margin-bottom:14px">
+      ${monthTab(curMk, '📅 ' + monthName(curMk))}
+      ${monthTab(nxtMk, '➡️ ' + monthName(nxtMk))}
+    </div>
     <div class="cat-edit-item" style="border-bottom:1.5px solid var(--gold);padding-bottom:14px;margin-bottom:4px">
       <span class="cat-edit-emoji">💰</span>
-      <span class="cat-edit-name" style="font-weight:700">Total do mês</span>
+      <span class="cat-edit-name" style="font-weight:700">Total de ${monthName(mk)}</span>
       <input class="cat-edit-budget" type="number" min="0" step="50"
              id="set-total-budget" value="${total}"
              oninput="onTotalBudgetInput(this.value)" />
@@ -1698,7 +1846,7 @@ function renderCatBudgetList() {
           <input class="cat-name-editable" type="text" value="${cat.name || ''}" placeholder="Nome"
                  oninput="updateBudgetCatName('${cat.id}',this.value)" />
           <input class="cat-edit-budget" type="number" min="0" step="10"
-                 value="${cat.budget || 0}" data-cat="${cat.id}"
+                 value="${catBudget(cat.id, mk)}" data-cat="${cat.id}"
                  oninput="updateCatBudget('${cat.id}', this.value)" />
           <button class="event-cat-remove" onclick="removeBudgetCategory('${cat.id}')" type="button">✕</button>
         </div>`).join('')}
@@ -1716,19 +1864,11 @@ function renderCatBudgetList() {
     renderCatBudgetList();
   });
 
-  // Eventos: separar ativos/futuros (editáveis) dos passados (só leitura)
-  const mk = currentMonthKey();
-  const today = todayISO();
-  const monthEvents   = (state.events || []).filter(ev =>
-    ev.startDate.slice(0, 7) <= mk && ev.endDate.slice(0, 7) >= mk
-  );
-  const upcomingEvents = (state.events || []).filter(ev => ev.startDate > today);
-
-  const editableSet = [...new Map(
-    [...monthEvents.filter(ev => getEventStatus(ev) !== 'past'), ...upcomingEvents]
-      .map(e => [e.id, e])
-  ).values()];
-  const pastSet = monthEvents.filter(ev => getEventStatus(ev) === 'past');
+  // Eventos do mês visto (um evento pertence só ao mês em que começa).
+  // Os passados ficam só de leitura; os ativos/futuros são editáveis.
+  const monthEvents = eventsForMonth(mk);
+  const editableSet = monthEvents.filter(ev => getEventStatus(ev) !== 'past');
+  const pastSet     = monthEvents.filter(ev => getEventStatus(ev) === 'past');
 
   const allRelevant = [...editableSet, ...pastSet];
 
@@ -1789,10 +1929,11 @@ function updateEventBudgetInBudgets(evId, value) {
 function renderBudgetAllocStatus() {
   const el = document.getElementById('budget-alloc-status');
   if (!el) return;
-  const total = state.totalBudget || 0;
+  const mk = currentMonthKey();
+  const total = monthTotal(mk);
   if (!total) { el.innerHTML = ''; return; }
 
-  const allocated = totalAllocated();
+  const allocated = totalAllocated(mk);
   const remaining = total - allocated;
   const allocPct = Math.min((allocated / total) * 100, 100);
   const barCls = remaining < 0 ? 'progress-red' : remaining / total < 0.25 ? 'progress-pink' : 'progress-gold';
@@ -1816,13 +1957,12 @@ function renderBudgetAllocStatus() {
 }
 
 function onTotalBudgetInput(value) {
-  state.totalBudget = parseFloat(value) || 0;
+  monthBudget(currentMonthKey()).total = parseFloat(value) || 0;
   renderBudgetAllocStatus();
 }
 
 function updateCatBudget(id, value) {
-  const cat = state.categories.find(c => c.id === id);
-  if (cat) cat.budget = parseFloat(value) || 0;
+  monthBudget(currentMonthKey()).categoryBudgets[id] = parseFloat(value) || 0;
   renderBudgetAllocStatus();
 }
 
@@ -1873,13 +2013,16 @@ function saveSettings() {
 }
 
 function saveBudgets() {
-  const totalInput = document.getElementById('set-total-budget');
-  if (totalInput) state.totalBudget = parseFloat(totalInput.value) || 0;
+  const mk = currentMonthKey();
+  const mb = monthBudget(mk);
 
-  if (state.totalBudget > 0) {
-    const allocated = totalAllocated();
-    if (allocated > state.totalBudget) {
-      showToast(`⚠️ Categorias (${formatCurrency(allocated)}) excedem o total (${formatCurrency(state.totalBudget)})`);
+  const totalInput = document.getElementById('set-total-budget');
+  if (totalInput) mb.total = parseFloat(totalInput.value) || 0;
+
+  if (mb.total > 0) {
+    const allocated = totalAllocated(mk);
+    if (allocated > mb.total) {
+      showToast(`⚠️ Categorias (${formatCurrency(allocated)}) excedem o total (${formatCurrency(mb.total)})`);
       return;
     }
   }
@@ -1887,16 +2030,16 @@ function saveBudgets() {
   saveState();
 
   if (!state.demoMode && state.coupleId) {
-    saveBudgetsToDb(state.coupleId, state.categories, state.totalBudget)
+    saveBudgetsToDb(state.coupleId, state.categories, mk, mb.total, mb.categoryBudgets)
       .catch(err => showToast(`Aviso: não sincronizou (${err.message})`));
-    // Sync event budgets that were edited in this screen
-    const mk = currentMonthKey();
-    (state.events || [])
-      .filter(ev => ev.startDate.slice(0,7) <= mk && ev.endDate.slice(0,7) >= mk || ev.startDate > todayISO())
+    // Sincroniza orçamentos de eventos editados neste ecrã (só os deste mês).
+    eventsForMonth(mk)
+      .filter(ev => getEventStatus(ev) !== 'past')
       .forEach(ev => saveEventToDb(state.coupleId, ev).catch(() => {}));
   }
 
   showToast('Orçamentos guardados! 💰');
+  state.viewingMonth = null;
   showScreen('dashboard');
 }
 
