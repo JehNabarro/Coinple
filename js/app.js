@@ -530,7 +530,11 @@ function renderDashboard() {
 function renderBudgetOverview(mk) {
   const el = document.getElementById('budget-overview');
   if (!el) return;
-  const total = monthTotal(mk) || totalAllocated(mk);
+  // O total disponível do mês é só o orçamento total definido para o mês.
+  // O orçamento de um evento já é dinheiro reservado DENTRO deste total, e as
+  // despesas do evento entram em totalSpentThisMonth — por isso não se soma nada
+  // aqui (senão criar um evento aumentava o "disponível" em vez de o reduzir).
+  const total = monthTotal(mk);
   const spent = totalSpentThisMonth(mk);
   const remaining = total - spent;
   const pct = total ? Math.min((spent / total) * 100, 100) : 0;
@@ -1124,7 +1128,9 @@ function renderHistoryChart(mk) {
     })),
   ].filter(i => i.budget > 0);
 
-  const totalBudget = monthTotal(mk) || totalAllocated(mk);
+  // Saldo do mês = total definido − tudo o que se gastou (eventos incluídos).
+  // Não somar totalAllocated: o orçamento dos eventos já vive dentro do total.
+  const totalBudget = monthTotal(mk);
   const totalSpent  = expensesForMonth(mk).reduce((s,e) => s + (e.amount||0), 0);
   const balance     = totalBudget - totalSpent;
 
