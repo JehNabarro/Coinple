@@ -80,6 +80,26 @@ function catBudget(catId, mk) {
   return state.monthlyBudgets[mk]?.categoryBudgets?.[catId] || 0;
 }
 
+// Categorias que pertencem a um mês. Cada mês tem o seu próprio conjunto:
+// a "pertença" é dada pela presença da chave em categoryBudgets desse mês.
+// Assim, adicionar/remover categorias afeta só o mês em causa.
+// Retrocompatível: meses antigos sem chaves caem para o catálogo completo.
+function monthCategories(mk) {
+  const keys = state.monthlyBudgets[mk]?.categoryBudgets;
+  if (!keys || !Object.keys(keys).length) return state.categories;
+  return state.categories.filter(c => Object.prototype.hasOwnProperty.call(keys, c.id));
+}
+
+// Garante que o mês tem a sua própria lista de categorias materializada
+// (cópia independente), para que edições não "vazem" entre meses.
+function ensureMonthMembership(mk) {
+  const mb = monthBudget(mk);
+  if (!Object.keys(mb.categoryBudgets).length) {
+    state.categories.forEach(c => { mb.categoryBudgets[c.id] = c.budget || 0; });
+  }
+  return mb;
+}
+
 // Orçamento total definido para esse mês.
 function monthTotal(mk) {
   return state.monthlyBudgets[mk]?.total || 0;
@@ -96,7 +116,7 @@ function eventEmojiFor(expense) {
 }
 
 function totalAllocated(mk) {
-  const catTotal = state.categories.reduce((s, c) => s + catBudget(c.id, mk), 0);
+  const catTotal = monthCategories(mk).reduce((s, c) => s + catBudget(c.id, mk), 0);
   const eventTotal = eventsForMonth(mk)
     .reduce((s, ev) => {
       // Eventos passados contam o gasto real — o orçamento está congelado.

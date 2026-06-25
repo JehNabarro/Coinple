@@ -263,13 +263,13 @@ function _updateFilterBadge() {
 }
 
 function openHistoryFilter() {
+  renderFilterSheet();
+  openModal('modal-history-filter');
+}
+
+function renderFilterSheet() {
   const el = document.getElementById('filter-sheet-content');
   if (!el) return;
-
-  const mk = currentMonthKey();
-  const monthEvents = (state.events || []).filter(ev =>
-    ev.startDate.slice(0,7) <= mk && ev.endDate.slice(0,7) >= mk
-  );
 
   const chip = (key, val, label) => {
     const on = historyFilters[key].includes(val) ? 'on' : '';
@@ -289,14 +289,42 @@ function openHistoryFilter() {
   state.categories.forEach(c => { html += chip('categories', c.id, c.emoji + ' ' + c.name); });
   html += `</div>`;
 
-  if (monthEvents.length || (state.events||[]).length) {
+  if ((state.events || []).length) {
     html += `<div class="filter-section-title">Eventos</div><div class="filter-chip-row">`;
-    (state.events||[]).forEach(ev => { html += chip('events', ev.id, ev.emoji + ' ' + ev.name); });
+    (state.events || []).forEach(ev => {
+      const on = historyFilters.events.includes(ev.id) ? 'on' : '';
+      html += `<button class="filter-chip-sel ${on}" onclick="toggleFilterEvent('${ev.id}')">${ev.emoji} ${ev.name}</button>`;
+    });
     html += `</div>`;
+
+    // Para cada evento selecionado, mostra as categorias desse evento logo abaixo.
+    (state.events || [])
+      .filter(ev => historyFilters.events.includes(ev.id) && (ev.categories || []).length)
+      .forEach(ev => {
+        html += `<div class="filter-section-title">${ev.emoji} Categorias de ${ev.name}</div><div class="filter-chip-row">`;
+        ev.categories.forEach(c => { html += chip('categories', c.id, c.emoji + ' ' + c.name); });
+        html += `</div>`;
+      });
   }
 
   el.innerHTML = html;
-  openModal('modal-history-filter');
+}
+
+// Alterna um evento no filtro. Ao ativar, junta automaticamente as categorias
+// desse evento ao filtro de categorias; ao desativar, remove-as.
+function toggleFilterEvent(eventId) {
+  const ev = (state.events || []).find(e => e.id === eventId);
+  const evCatIds = (ev?.categories || []).map(c => c.id);
+  const i = historyFilters.events.indexOf(eventId);
+  if (i >= 0) {
+    historyFilters.events.splice(i, 1);
+    historyFilters.categories = historyFilters.categories.filter(id => !evCatIds.includes(id));
+  } else {
+    historyFilters.events.push(eventId);
+    evCatIds.forEach(id => { if (!historyFilters.categories.includes(id)) historyFilters.categories.push(id); });
+  }
+  _updateFilterBadge();
+  renderFilterSheet();
 }
 
 function renderHistory() {
@@ -309,7 +337,7 @@ function renderHistory() {
   const tagsEl = document.getElementById('history-active-filter-tags');
   if (tagsEl) {
     const tags = [
-      ...historyFilters.categories.map(id => { const c = state.categories.find(x=>x.id===id); return c ? `<span class="active-filter-tag">${c.emoji} ${c.name}</span>` : ''; }),
+      ...historyFilters.categories.map(id => { const c = getCategory(id); return c ? `<span class="active-filter-tag">${c.emoji} ${c.name}</span>` : ''; }),
       ...historyFilters.people.map(email => { const p = state.partners.find(x=>x.email===email); return p ? `<span class="active-filter-tag">${firstName(p.name)}</span>` : ''; }),
       ...historyFilters.events.map(id => { const ev = (state.events||[]).find(x=>x.id===id); return ev ? `<span class="active-filter-tag">${ev.emoji} ${ev.name}</span>` : ''; }),
     ].filter(Boolean);
@@ -351,7 +379,7 @@ function renderHistoryChart(mk) {
   const monthEvents = eventsForMonth(mk);
 
   const items = [
-    ...state.categories.map(cat => ({
+    ...monthCategories(mk).map(cat => ({
       name: cat.name, emoji: cat.emoji, color: cat.color || '#EC4899',
       budget: catBudget(cat.id, mk),
       spent: spentByCategory(cat.id, mk),

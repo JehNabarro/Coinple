@@ -108,7 +108,7 @@ function renderEventCategoryCards(ev) {
 
 function renderCategoryCards(mk) {
   const grid = document.getElementById('categories-grid');
-  const cats = state.categories;
+  const cats = monthCategories(mk);
   const big = cats.slice(0, 3);
   const small = cats.slice(3);
 

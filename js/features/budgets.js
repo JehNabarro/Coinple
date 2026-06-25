@@ -56,8 +56,12 @@ function renderCatBudgetList() {
   // Por omissão mostra o mês real; o seletor permite saltar para o mês seguinte.
   if (!state.viewingMonth) state.viewingMonth = realMonthKey();
   const mk = currentMonthKey();
-  monthBudget(mk); // garante a estrutura do mês
+  // Materializa a lista de categorias dos dois meses visíveis como cópias
+  // independentes, para que adicionar/remover num mês não afete o outro.
+  ensureMonthMembership(realMonthKey());
+  ensureMonthMembership(nextMonthKey());
 
+  const cats = monthCategories(mk);
   const total = monthTotal(mk);
   const list = document.getElementById('cat-budget-list');
 
@@ -68,7 +72,7 @@ function renderCatBudgetList() {
             onclick="selectBudgetMonth('${key}')" type="button">${label}</button>`;
 
   list.innerHTML = `
-    <div class="budget-month-tabs" style="display:flex;gap:8px;margin-bottom:14px">
+    <div class="expense-scope-tabs" style="margin-bottom:14px">
       ${monthTab(curMk, '📅 ' + monthName(curMk))}
       ${monthTab(nxtMk, '➡️ ' + monthName(nxtMk))}
     </div>
@@ -81,7 +85,7 @@ function renderCatBudgetList() {
     </div>
     <div id="budget-alloc-status"></div>
     <div id="cat-sortable-list">
-      ${state.categories.map((cat, i) => `
+      ${cats.map((cat, i) => `
         <div class="cat-edit-item" data-sort-idx="${i}" data-cat-id="${cat.id}">
           <div class="drag-handle" title="Arrastar">${DRAG_HANDLE_SVG}</div>
           <button class="cat-emoji-btn" onclick="openBudgetCatEmojiPicker('${cat.id}',this)" type="button">${cat.emoji}</button>
@@ -100,8 +104,12 @@ function renderCatBudgetList() {
 
   const sortableEl = document.getElementById('cat-sortable-list');
   setupSortable(sortableEl, newOrder => {
-    const old = [...state.categories];
-    state.categories = newOrder.map(i => old[i]);
+    // Reordena as categorias do mês visível e reflete a ordem no catálogo,
+    // mantendo no fim quaisquer categorias que não pertençam a este mês.
+    const shown = monthCategories(mk);
+    const reordered = newOrder.map(i => shown[i]);
+    const shownIds = new Set(shown.map(c => c.id));
+    state.categories = [...reordered, ...state.categories.filter(c => !shownIds.has(c.id))];
     saveState();
     renderCatBudgetList();
   });
@@ -195,13 +203,12 @@ function updateBudgetCatName(catId, value) {
 }
 
 function addBudgetCategory() {
-  state.categories.push({
-    id: 'cat_' + generateId().slice(0, 8),
-    name: '',
-    emoji: '📦',
-    budget: 0,
-    color: '#6B7280',
-  });
+  const mk = currentMonthKey();
+  const mb = ensureMonthMembership(mk); // materializa este mês antes de mexer
+  const id = 'cat_' + generateId().slice(0, 8);
+  state.categories.push({ id, name: '', emoji: '📦', budget: 0, color: '#6B7280' });
+  mb.categoryBudgets[id] = 0; // pertence só a este mês
+  saveState();
   renderCatBudgetList();
   setTimeout(() => {
     const inputs = document.querySelectorAll('#cat-sortable-list .cat-name-editable');
@@ -210,8 +217,14 @@ function addBudgetCategory() {
 }
 
 function removeBudgetCategory(catId) {
-  confirmAction('Remover esta categoria?', () => {
-    state.categories = state.categories.filter(c => c.id !== catId);
+  confirmAction('Remover esta categoria deste mês?', () => {
+    const mk = currentMonthKey();
+    const mb = ensureMonthMembership(mk); // materializa este mês antes de remover
+    delete mb.categoryBudgets[catId]; // remove só deste mês
+    // Se já não for usada em nenhum mês, sai também do catálogo global.
+    const usedAnywhere = Object.values(state.monthlyBudgets)
+      .some(m => m.categoryBudgets && Object.prototype.hasOwnProperty.call(m.categoryBudgets, catId));
+    if (!usedAnywhere) state.categories = state.categories.filter(c => c.id !== catId);
     saveState();
     renderCatBudgetList();
   });
@@ -253,7 +266,7 @@ function saveBudgets() {
   saveState();
 
   if (!state.demoMode && state.coupleId) {
-    saveBudgetsToDb(state.coupleId, state.categories, mk, mb.total, mb.categoryBudgets)
+    saveBudgetsToDb(state.coupleId, monthCategories(mk), mk, mb.total, mb.categoryBudgets)
       .catch(err => showToast(`Aviso: não sincronizou (${err.message})`));
     // Sincroniza orçamentos de eventos editados neste ecrã (só os deste mês).
     eventsForMonth(mk)
