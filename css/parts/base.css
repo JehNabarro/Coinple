@@ -1,0 +1,452 @@
+/* ── Reset & Base ── */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  /* ── Coinple pastel-landscape theme ── */
+  --brand-dark: #3C111D;
+  /* logo + títulos + texto */
+  --cream: #FCE9DD;
+  /* céu / fundo da app */
+  --cream-2: #FAD9CC;
+  /* fundo inferior do gradiente */
+  --card: #FAE0D5;
+  /* cartão principal (finance card) */
+  --tab-bg: #FCD6C5;
+  /* barra inferior */
+
+  /* nomes herdados (usados por app.js / componentes) remapeados */
+  --bg: #FCE9DD;
+  --bg-card: #FFF7F1;
+  /* superfícies genéricas (cards, inputs) */
+  --bg-elev: #FBEADF;
+  --gold: #2E9E5B;
+  /* verde "disponível" / sob orçamento */
+  --gold-dark: #1F7D45;
+  --gold-lt: rgba(46, 158, 91, 0.12);
+  --pink: #B5546B;
+  /* rosa-vinho accent / aviso */
+  --pink-dark: #8E3F54;
+  --pink-lt: rgba(181, 84, 107, 0.12);
+  --grad: linear-gradient(135deg, #E89A86 0%, #C8728A 100%);
+  --rose: #A34857;
+  /* tab ativo / barra de destaque */
+  --green: #2E9E5B;
+  --text: #3C111D;
+  --text-muted: #9B7680;
+  --border: #F1CFBF;
+  --danger: #D0596B;
+  --shadow: 0 4px 18px rgba(108, 42, 58, 0.10);
+  --shadow-lg: 0 16px 44px rgba(108, 42, 58, 0.20);
+  --radius: 22px;
+  --radius-sm: 15px;
+  --tab-h: 74px;
+  --bg-glass: rgba(252, 233, 221, 0.88);
+  --bg-glass-heavy: rgba(252, 214, 197, 0.96);
+  --bg-toast: #3C111D;
+  /* Safe area insets (notch / home indicator iOS) */
+  --sat: env(safe-area-inset-top, 0px);
+  --sab: env(safe-area-inset-bottom, 0px);
+  --sal: env(safe-area-inset-left, 0px);
+  --sar: env(safe-area-inset-right, 0px);
+}
+
+/* Tema escuro descontinuado — uma só identidade visual */
+html.light-theme {
+  color-scheme: light;
+}
+
+html,
+body {
+  min-height: 100vh;
+  font-family: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  color-scheme: light;
+}
+
+/* Tranca a página ao viewport (evita scroll/resize do body em PWA standalone iOS,
+   garantindo que a barra inferior fica mesmo no fundo) */
+html,
+body {
+  width: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+/* Faixa rosa por trás da hora/bateria (safe-area do topo no PWA standalone) */
+#statusbar-bg {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: env(safe-area-inset-top, 0px);
+  background: #f7a8a3;
+  z-index: 150;
+  pointer-events: none;
+}
+
+/* ── View switching (login / setup / app) ── */
+#login-screen,
+#setup-screen {
+  display: none;
+}
+
+body.logged-out #app {
+  display: none;
+}
+
+body.logged-out #login-screen {
+  display: flex;
+}
+
+body.in-setup #app {
+  display: none;
+}
+
+body.in-setup #setup-screen {
+  display: block;
+}
+
+/* ── Login / Splash screen ── */
+#login-screen {
+  position: fixed;
+  inset: 0;
+  background: url('../../assets/landscape-splash.png') center top / cover no-repeat, var(--cream);
+  align-items: flex-end;
+  justify-content: center;
+  z-index: 50;
+  overflow-y: auto;
+}
+
+.login-inner {
+  max-width: 360px;
+  width: 100%;
+  padding: 0 28px calc(48px + var(--sab));
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+
+/* Branding block (logo) */
+.branding {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  margin-top: 18vh;
+  margin-bottom: auto;
+}
+
+.brand-logo {
+  width: 230px;
+  max-width: 70vw;
+  height: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.brand-logo img {
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+  filter: drop-shadow(0 6px 16px rgba(60, 17, 29, 0.18));
+}
+
+/* Wordmark já vem no logo SVG — esconde o texto duplicado */
+.brand-name {
+  display: none;
+}
+
+.brand-slogan {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  color: var(--brand-dark);
+  opacity: 0.85;
+}
+
+.btn-google {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  height: 54px;
+  border-radius: 27px;
+  border: none;
+  background: #fff;
+  font-size: 15px;
+  font-weight: 700;
+  font-family: inherit;
+  color: var(--brand-dark);
+  cursor: pointer;
+  box-shadow: 0 6px 22px rgba(60, 17, 29, 0.22);
+  transition: all 0.15s;
+}
+
+.btn-google:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 28px rgba(60, 17, 29, 0.28);
+}
+
+.btn-google:active {
+  transform: scale(0.98);
+}
+
+.login-demo {
+  display: block;
+  width: 100%;
+  margin-top: 14px;
+  background: none;
+  border: none;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--brand-dark);
+  cursor: pointer;
+  padding: 10px;
+}
+
+.login-hint {
+  margin-top: 16px;
+  font-size: 12.5px;
+  color: var(--brand-dark);
+  opacity: 0.75;
+  line-height: 1.5;
+  min-height: 18px;
+}
+
+/* ── Setup screen ── */
+#setup-screen {
+  position: fixed;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(252, 233, 221, 0.6) 0%, var(--cream) 40%),
+    url('../../assets/landscape-header.png') center top / cover no-repeat,
+    var(--cream);
+  z-index: 50;
+  overflow-y: auto;
+}
+
+/* ── Loading screen (mesmo fundo do cadastro) ── */
+#loading-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(180deg, rgba(252, 233, 221, 0.6) 0%, var(--cream) 40%),
+    url('../../assets/landscape-header.png') center top / cover no-repeat,
+    var(--cream);
+}
+
+body.ready #loading-screen {
+  display: none;
+}
+
+.loading-logo {
+  width: 180px;
+  max-width: 60vw;
+  height: auto;
+  animation: loading-breathe 1.8s ease-in-out infinite;
+}
+
+@keyframes loading-breathe {
+
+  0%,
+  100% {
+    opacity: 0.5;
+    transform: scale(0.96);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1.03);
+  }
+}
+
+.setup-inner {
+  max-width: 420px;
+  margin: 0 auto;
+  padding: calc(40px + var(--sat)) 20px 60px;
+}
+
+.setup-greeting {
+  text-align: center;
+  margin-bottom: 26px;
+}
+
+.setup-greeting h2 {
+  font-size: 22px;
+  margin: 12px 0 8px;
+}
+
+.setup-greeting p {
+  font-size: 14px;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.setup-card {
+  background: var(--bg-card);
+  border-radius: var(--radius);
+  padding: 20px;
+  box-shadow: var(--shadow);
+  margin-bottom: 16px;
+  border: 1px solid var(--border);
+}
+
+.setup-card-title {
+  font-size: 16px;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.setup-card p {
+  font-size: 13.5px;
+  color: var(--text-muted);
+  margin-bottom: 14px;
+  line-height: 1.5;
+}
+
+.setup-share {
+  border-color: var(--green);
+  background: var(--gold-lt);
+}
+
+.share-link-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.share-link-row .form-input {
+  flex: 1;
+  height: 40px;
+  font-size: 12px;
+}
+
+/* ── Avatars (fotinhos) ── */
+.avatar {
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  color: white;
+  width: 40px;
+  height: 40px;
+  font-size: 16px;
+  vertical-align: middle;
+  background: var(--rose);
+}
+
+.avatar.tone-gold {
+  border: 2.5px solid #fad9cc;
+  background: #D8A24B;
+}
+
+.avatar.tone-pink {
+  border: 2.5px solid #fad9cc;
+  background: var(--rose);
+}
+
+.avatar-xs {
+  width: 18px;
+  height: 18px;
+  font-size: 9px;
+  border-width: 1.5px !important;
+}
+
+.avatar-sm {
+  width: 28px;
+  height: 28px;
+  font-size: 12px;
+}
+
+.avatar-md {
+  width: 48px;
+  height: 48px;
+  font-size: 19px;
+}
+
+.avatar-lg {
+  width: 64px;
+  height: 64px;
+  font-size: 24px;
+  border: 3px solid #fff;
+}
+
+.avatar-xl {
+  width: 60px;
+  height: 60px;
+  font-size: 24px;
+  border: 3px solid #fff;
+}
+
+/* ── Layout ── */
+#app {
+  display: flex;
+  flex-direction: column;
+  /* Fixa o app entre o topo e o fundo REAIS do viewport (top/bottom: 0).
+     Em PWA standalone iOS isto cobre o ecrã inteiro de forma fiável, sem a
+     folga em baixo que aparecia ao medir window.innerHeight nas versões novas
+     do iOS. A barra inferior cola-se ao fundo; o safe-area fica no padding. */
+  position: fixed;
+  min-height: 100vh;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  max-width: 480px;
+  margin: 0 auto;
+  overflow: hidden;
+  background: linear-gradient(180deg, var(--cream) 0%, var(--cream-2) 100%);
+}
+
+/* ── Screen container ── */
+.screens {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
+
+.screen {
+  position: absolute;
+  inset: 0;
+  overflow-y: auto;
+  display: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.screen.active {
+  display: block;
+}
+
+/* Screens com cabeçalho próprio (sem barra de topo global).
+   O padding inferior limpa o tab-bar fixo (altura nominal + safe-area). */
+#screen-add,
+#screen-history,
+#screen-budgets,
+#screen-settings,
+#screen-events,
+#screen-event-form {
+  padding: calc(20px + var(--sat)) 16px calc(28px + var(--tab-h) + var(--sab));
+}
+
+#screen-dashboard {
+  padding: 0 0 calc(28px + var(--tab-h) + var(--sab));
+}
+

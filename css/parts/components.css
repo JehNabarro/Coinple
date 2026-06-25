@@ -1,0 +1,898 @@
+/* ── Dashboard hero (paisagem + logo) ── */
+.dash-hero {
+  position: relative;
+  height: 282px;
+  background-image: url('../../assets/landscape-header.png');
+  background-repeat: no-repeat;
+  background-position: top;
+  background-size: cover;
+}
+
+.header-brand {
+  position: absolute;
+  top: calc(14px + var(--sat));
+  left: calc(16px + var(--sal));
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 6px 4px;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.header-brand:active {
+  opacity: 0.7;
+  transform: scale(0.97);
+}
+
+.hero-logo {
+  width: 190px;
+  max-width: 60vw;
+  height: auto;
+  display: block;
+}
+
+/* ── Finance card (cartão principal) ── */
+.finance-card {
+  position: relative;
+  margin: -64px 12px 0;
+  background: var(--card);
+  border-radius: 28px;
+  padding: 26px 18px 20px;
+  box-shadow: 0 -2px 28px rgba(108, 42, 58, 0.10);
+}
+
+/* Avatares do casal — sobrepõem o topo do cartão (à direita) */
+.couple-photos {
+  position: absolute;
+  top: -34px;
+  right: 22px;
+  display: flex;
+  align-items: center;
+}
+
+.couple-photos .avatar {
+  margin-left: -14px;
+  box-shadow: 0 2px 8px rgba(60, 17, 29, 0.18);
+}
+
+.couple-photos .avatar:first-child {
+  margin-left: 0;
+}
+
+.couple-heart {
+  display: none;
+}
+
+.finance-title-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 0;
+}
+
+.finance-bar {
+  width: 5px;
+  align-self: stretch;
+  min-height: 28px;
+  border-radius: 3px;
+  background: var(--rose);
+  flex-shrink: 0;
+}
+
+.finance-title {
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.15;
+  color: var(--brand-dark);
+  max-width: 200px;
+}
+
+#budget-overview {
+  margin-top: -5px;
+}
+
+.finance-names {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--rose);
+  margin-top: 4px;
+}
+
+/* total disponível + progresso */
+.finance-total {
+  text-align: right;
+  margin-bottom: 14px;
+}
+
+.finance-total-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.finance-total-amt {
+  font-size: 30px;
+  font-weight: 800;
+  color: var(--green);
+  line-height: 1;
+}
+
+.finance-total-amt.neg {
+  color: var(--danger);
+}
+
+.finance-total-label {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+/* Event emoji badge on home dashboard */
+.event-badge-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--pink-lt);
+  border: 2px solid var(--rose);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: transform 0.12s;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.event-badge-btn:active {
+  transform: scale(0.88);
+}
+
+.finance-progress {
+  position: relative;
+  height: 8px;
+  background: #F0D4C7;
+  border-radius: 5px;
+  margin-bottom: 8px;
+}
+
+.finance-progress-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: var(--brand-dark);
+  border-radius: 5px;
+  transition: width 0.4s ease;
+}
+
+.finance-progress-marker {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 20px;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.25));
+  pointer-events: none;
+}
+
+/* ── Category cards (grid no finance card) ── */
+.categories-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.cat-row-big {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.cat-row-small {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.cat-card {
+  border-radius: 18px;
+  padding: 14px 8px 12px;
+  text-align: center;
+  cursor: pointer;
+  transition: transform 0.12s;
+  box-shadow: 0 2px 8px rgba(108, 42, 58, 0.06);
+}
+
+.cat-card:active {
+  transform: scale(0.96);
+}
+
+.cat-icon-wrap {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  margin: 0 auto 8px;
+}
+
+.cat-card.small .cat-icon-wrap {
+  width: 40px;
+  height: 40px;
+  font-size: 20px;
+  margin-bottom: 6px;
+}
+
+.cat-avail {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--green);
+}
+
+.cat-card.small .cat-avail {
+  font-size: 13px;
+}
+
+.cat-avail.neg {
+  color: var(--danger);
+}
+
+.cat-avail-label {
+  font-size: 10.5px;
+  color: var(--text-muted);
+  margin-top: 1px;
+}
+
+/* Barra de progresso fina (igual à finance-progress, sem ícone) */
+.cat-progress {
+  height: 5px;
+  background: #F0D4C7;
+  border-radius: 4px;
+  overflow: hidden;
+  margin: 9px 2px 0;
+}
+
+.cat-card.small .cat-progress {
+  margin: 7px 2px 6px;
+}
+
+.cat-progress-fill {
+  height: 100%;
+  background: var(--brand-dark);
+  border-radius: 4px;
+  transition: width 0.4s ease;
+}
+
+.cat-budget-line {
+  font-size: 10.5px;
+  color: var(--text-muted);
+  margin-top: 6px;
+}
+
+/* ── Section headers ── */
+.dash-section {
+  padding: 22px 16px 0;
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.section-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.section-link {
+  font-size: 13px;
+  color: var(--rose);
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: inherit;
+  font-weight: 600;
+}
+
+/* ── Generic card ── */
+.card {
+  background: var(--bg-card);
+  border-radius: var(--radius);
+  padding: 18px;
+  box-shadow: var(--shadow);
+  margin-bottom: 14px;
+}
+
+/* ── Bottom tab bar ── */
+.tab-bar {
+  /* Fixa ao fundo REAL do viewport (como o exemplo), com a barra centrada.
+     12px de respiro + safe-area do home indicator no padding inferior. */
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  max-width: 480px;
+  margin: 0 auto;
+  background: var(--tab-bg);
+  border-top: 1px solid rgba(60, 17, 29, 0.06);
+  box-shadow: 0 -4px 20px rgba(108, 42, 58, 0.10);
+  display: flex;
+  align-items: flex-start;
+  padding: 10px 4px 16px;
+  z-index: 10;
+}
+
+.tab-btn {
+  flex: 1;
+  border: none;
+  background: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  cursor: pointer;
+  color: var(--brand-dark);
+  font-size: 11px;
+  font-weight: 600;
+  transition: color 0.15s, opacity 0.15s;
+  opacity: 0.55;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.tab-btn svg,
+.tab-btn img {
+  width: 26px;
+  height: 26px;
+}
+
+#tab-dashboard img {
+  width: 32px;
+  height: 26px;
+}
+
+.tab-btn svg {
+  stroke: var(--brand-dark);
+}
+
+.tab-btn.active {
+  color: var(--rose);
+  opacity: 1;
+}
+
+.tab-btn.active svg {
+  stroke: var(--rose);
+}
+
+/* Botão central "Adicionar" em destaque (círculo elevado) */
+.tab-btn.tab-add {
+  opacity: 1;
+  color: rgba(60, 17, 29, 0.55);
+}
+
+.tab-btn.tab-add.active {
+  color: var(--rose);
+}
+
+.tab-add-circle {
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  background: var(--grad);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: -28px;
+  margin-bottom: 0;
+  box-shadow: 0 6px 16px rgba(200, 114, 138, 0.45);
+  border: 4px solid var(--tab-bg);
+}
+
+.tab-btn.tab-add .tab-add-circle svg {
+  width: 26px;
+  height: 26px;
+  stroke: #fff;
+}
+
+.tab-btn.tab-add:active .tab-add-circle {
+  transform: scale(0.94);
+}
+
+/* ── Recent expenses / history rows ── */
+.expense-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.expense-item:last-child {
+  border-bottom: none;
+}
+
+/* Variante em cartão (ecrã Relatório): cada despesa é um cartão com sombra. */
+.expense-item.is-card {
+  padding: 12px 14px;
+  background: var(--bg-card);
+  border-radius: var(--radius-sm);
+  margin-bottom: 8px;
+  box-shadow: var(--shadow);
+  border-bottom: none;
+  cursor: pointer;
+  transition: transform 0.12s;
+}
+
+.expense-item.is-card:active {
+  transform: scale(0.98);
+}
+
+.expense-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.expense-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.expense-desc {
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.expense-event-tag {
+  font-size: 14px;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.expense-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 3px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.expense-person {
+  background: var(--pink-lt);
+  color: var(--pink-dark);
+  padding: 1px 7px;
+  border-radius: 20px;
+  font-weight: 600;
+}
+
+.expense-amount {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  flex-shrink: 0;
+}
+
+/* progress (categorias antigas / orçamentos) */
+.progress-bar {
+  height: 5px;
+  background: var(--gold-lt);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.4s ease;
+}
+
+.progress-gold {
+  background: var(--green);
+}
+
+.progress-pink {
+  background: var(--pink);
+}
+
+.progress-red {
+  background: var(--danger);
+}
+
+/* ── Add expense screen ── */
+.receipt-upload {
+  display: block;
+  background: var(--bg-card);
+  border-radius: var(--radius);
+  border: 2px dashed rgba(181, 84, 107, 0.35);
+  padding: 32px 20px;
+  text-align: center;
+  cursor: pointer;
+  margin-bottom: 14px;
+  transition: border-color 0.15s, background 0.15s;
+  position: relative;
+}
+
+.receipt-upload:hover {
+  border-color: var(--rose);
+  background: var(--pink-lt);
+}
+
+.receipt-upload input[type="file"] {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.upload-icon {
+  font-size: 36px;
+  margin-bottom: 10px;
+}
+
+.upload-title {
+  font-size: 15px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.upload-subtitle {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.receipt-preview {
+  width: 100%;
+  max-height: 200px;
+  object-fit: contain;
+  border-radius: 12px;
+  margin-bottom: 12px;
+  display: none;
+}
+
+.ai-analyzing {
+  background: var(--pink-lt);
+  border-radius: var(--radius);
+  padding: 16px;
+  text-align: center;
+  margin-bottom: 14px;
+  display: none;
+}
+
+.ai-analyzing.visible {
+  display: block;
+}
+
+.spinner {
+  display: inline-block;
+  width: 24px;
+  height: 24px;
+  border: 3px solid var(--border);
+  border-top-color: var(--rose);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  margin-bottom: 8px;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ── Form ── */
+.form-group {
+  margin-bottom: 14px;
+}
+
+.form-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 6px;
+  color: var(--text);
+}
+
+.form-input,
+.form-select {
+  width: 100%;
+  height: 48px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0 14px;
+  font-size: 15px;
+  font-family: inherit;
+  color: var(--text);
+  background: var(--bg-card);
+  outline: none;
+  transition: border-color 0.15s;
+  appearance: none;
+}
+
+.form-input:focus,
+.form-select:focus {
+  border-color: var(--rose);
+}
+
+.person-selector {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.person-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  border: 1.5px solid var(--border);
+  background: var(--bg-card);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+  text-align: center;
+  font-family: inherit;
+  color: var(--text);
+}
+
+.person-btn.selected {
+  border-color: var(--rose);
+  background: var(--pink-lt);
+  color: var(--pink-dark);
+  font-weight: 600;
+}
+
+.category-selector {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  margin-bottom: 14px;
+  scrollbar-width: none;
+}
+
+.category-selector::-webkit-scrollbar {
+  display: none;
+}
+
+.cat-pill {
+  flex-shrink: 0;
+  padding: 7px 14px;
+  border-radius: 20px;
+  border: 1.5px solid var(--border);
+  background: var(--bg-card);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+  font-family: inherit;
+  color: var(--text);
+  transition: all 0.15s;
+}
+
+.cat-pill.selected {
+  border-color: var(--rose);
+  background: var(--pink-lt);
+  color: var(--pink-dark);
+  font-weight: 600;
+}
+
+/* Expense scope tab switcher (Mês / Evento) */
+.expense-scope-tabs {
+  display: flex;
+  background: var(--bg-elev);
+  border-radius: 12px;
+  padding: 4px;
+  gap: 4px;
+  border: 1px solid var(--border);
+}
+
+.scope-tab {
+  flex: 1;
+  padding: 9px 10px;
+  border-radius: 9px;
+  border: none;
+  background: transparent;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.scope-tab.active {
+  background: var(--bg-card);
+  color: var(--rose);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.14);
+}
+
+/* Category grid in add-expense / edit-expense */
+.cat-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.cat-grid-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 6px;
+  border-radius: 12px;
+  border: 2px solid transparent;
+  background: var(--bg-elev);
+  cursor: pointer;
+  gap: 5px;
+  transition: all 0.12s;
+  font-family: inherit;
+  min-height: 68px;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.cat-grid-emoji {
+  font-size: 22px;
+  line-height: 1;
+}
+
+.cat-grid-name {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-muted);
+  text-align: center;
+  line-height: 1.2;
+}
+
+.cat-grid-item.selected {
+  border-color: var(--rose);
+  background: var(--pink-lt);
+}
+
+.cat-grid-item.selected .cat-grid-name {
+  color: var(--rose);
+  font-weight: 700;
+}
+
+.cat-grid-item:active {
+  transform: scale(0.93);
+}
+
+/* Past events month sub-label */
+.events-month-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: capitalize;
+  padding: 6px 0 4px;
+  letter-spacing: 0.3px;
+}
+
+/* Novo Evento button at bottom of events list */
+.btn-new-event-bottom {
+  display: block;
+  width: 100%;
+  margin-top: 18px;
+}
+
+/* ── Buttons ── */
+.btn {
+  display: block;
+  width: 100%;
+  height: 52px;
+  border-radius: var(--radius-sm);
+  border: none;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s;
+}
+
+.btn-primary {
+  background: var(--grad);
+  color: white;
+  box-shadow: 0 6px 18px rgba(200, 114, 138, 0.32);
+}
+
+.btn-primary:hover {
+  filter: brightness(1.04);
+}
+
+.btn-primary:active {
+  transform: scale(0.98);
+}
+
+.btn-primary:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.btn-pink {
+  background: var(--rose);
+  color: white;
+}
+
+.btn-pink:hover {
+  background: var(--pink-dark);
+}
+
+.btn-pink:active {
+  transform: scale(0.98);
+}
+
+.btn-pink:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.btn-secondary {
+  background: var(--bg-elev);
+  color: var(--text);
+  border: 1.5px solid var(--border);
+}
+
+.btn-secondary:active {
+  transform: scale(0.98);
+}
+
+.btn-danger {
+  background: rgba(208, 89, 107, 0.12);
+  color: var(--danger);
+  border: 1.5px solid rgba(208, 89, 107, 0.35);
+}
+
+.btn-sm {
+  height: 38px;
+  width: auto;
+  padding: 0 16px;
+  font-size: 13px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.btn-row {
+  display: flex;
+  gap: 10px;
+}
+
+.btn-row .btn {
+  flex: 1;
+}
+
